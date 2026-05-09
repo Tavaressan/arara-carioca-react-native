@@ -12,7 +12,7 @@ const OBSTACLE_SPEED = 4;
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
-const GAP_SIZE = 500;
+const GAP_SIZE = 350
 
 export function useGameLoop() {
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>('idle');
