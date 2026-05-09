@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Text, TouchableOpacity, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../navigation/types';
 import { useGameLoop } from '../hooks/useGameLoop';
 import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
@@ -9,9 +10,13 @@ import { COLORS, FONTS } from '../constants/theme';
 import { Audio } from 'expo-av';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import { useRef } from 'react';
 
 export function GameScreenInner() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
+  const difficulty = route.params?.difficulty || 'normal';
+  
   const {
     gameState,
     score,
@@ -25,10 +30,10 @@ export function GameScreenInner() {
     BIRD_SIZE,
     BIRD_X,
     OBSTACLE_WIDTH,
-    GAP_SIZE,
+    currentGapSize,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-  } = useGameLoop();
+  } = useGameLoop(difficulty);
 
   const [canExitVictory, setCanExitVictory] = useState(false);
 
@@ -39,10 +44,12 @@ export function GameScreenInner() {
       if (score < 31) return require('../../assets/sounds/music/high-score.mp3');
       return require('../../assets/sounds/music/game-over.mp3');
     }
+    if (gameState === 'gameOver') return require('../../assets/sounds/music/game-over.mp3');
     return null;
   };
 
   const trackSource = getCurrentTrack();
+  const trackPositions = useRef<{ [key: number]: number }>({});
 
   useFocusEffect(
     React.useCallback(() => {
@@ -61,7 +68,8 @@ export function GameScreenInner() {
             return;
           }
           sound = s;
-          await sound.playAsync();
+          const savedPosition = trackPositions.current[trackSource as number] || 0;
+          await sound.playFromPositionAsync(savedPosition);
         } catch (e) {
           console.warn('Music track not found:', e);
         }
@@ -71,7 +79,16 @@ export function GameScreenInner() {
 
       return () => {
         isCancelled = true;
-        if (sound) sound.unloadAsync();
+        if (sound) {
+          sound.getStatusAsync().then(status => {
+            if (status.isLoaded) {
+              trackPositions.current[trackSource as number] = status.positionMillis;
+            }
+            sound?.unloadAsync();
+          }).catch(() => {
+            sound?.unloadAsync();
+          });
+        }
       };
     }, [trackSource])
   );
@@ -163,7 +180,7 @@ export function GameScreenInner() {
             <>
               <Score score={score} />
 
-              {score < 31 && (
+              {score < 50 && (
                 <>
                   <Obstacle
                     x={obstacleX}
@@ -175,7 +192,7 @@ export function GameScreenInner() {
 
                   <Obstacle
                     x={obstacleX}
-                    y={obstacleGapY.value + GAP_SIZE}
+                    y={obstacleGapY.value + currentGapSize.value}
                     width={OBSTACLE_WIDTH}
                     height={SCREEN_HEIGHT}
                     isTop={false}

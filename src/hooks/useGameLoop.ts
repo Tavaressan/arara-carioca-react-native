@@ -12,9 +12,18 @@ const OBSTACLE_SPEED = 4;
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
-const GAP_SIZE = 350
 
-export function useGameLoop() {
+export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+  const getPhaseGaps = () => {
+    switch (difficulty) {
+      case 'easy': return { phase1: 650, phase2: 550, phase3: 450 };
+      case 'hard': return { phase1: 380, phase2: 280, phase3: 180 };
+      case 'normal':
+      default: return { phase1: 550, phase2: 450, phase3: 350 };
+    }
+  };
+  const gaps = getPhaseGaps();
+
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>('idle');
   const [score, setScore] = useState(0);
   const [countdownValue, setCountdownValue] = useState(3);
@@ -24,19 +33,22 @@ export function useGameLoop() {
 
   const birdY = useSharedValue(SCREEN_HEIGHT / 2);
   const birdVelocity = useSharedValue(0);
-  
+
   const obstacleX = useSharedValue(SCREEN_WIDTH);
-  const obstacleGapY = useSharedValue(SCREEN_HEIGHT / 2 - GAP_SIZE / 2);
+  const currentGapSize = useSharedValue(gaps.phase1);
+  const obstacleGapY = useSharedValue(SCREEN_HEIGHT / 2 - gaps.phase1 / 2);
   const scoreSV = useSharedValue(0);
 
   useEffect(() => {
+    let loadedSounds: any = {};
     async function loadSounds() {
       try {
         const flap = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/flap.mp3'));
         const point = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/sfx_point.mp3'));
         const hit = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/hit-sound.mp3'));
-        
-        setSounds({ flap: flap.sound, point: point.sound, hit: hit.sound });
+
+        loadedSounds = { flap: flap.sound, point: point.sound, hit: hit.sound };
+        setSounds(loadedSounds);
       } catch (e) {
         console.warn('Could not load some sounds', e);
       }
@@ -44,7 +56,7 @@ export function useGameLoop() {
     loadSounds();
 
     return () => {
-      Object.values(sounds).forEach((s: any) => s.unloadAsync());
+      Object.values(loadedSounds).forEach((s: any) => s.unloadAsync());
     };
   }, []);
 
@@ -78,7 +90,7 @@ export function useGameLoop() {
       birdY.value = SCREEN_HEIGHT / 2;
       birdVelocity.value = 0;
       obstacleX.value = SCREEN_WIDTH;
-      
+
       const interval = setInterval(() => {
         setCountdownValue((prev) => {
           if (prev <= 1) {
@@ -92,7 +104,7 @@ export function useGameLoop() {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [gameState]);
+  }, [gameState, birdY, birdVelocity, obstacleX]);
 
   useFrameCallback((frameInfo) => {
     if (gameState !== 'playing') return;
@@ -104,22 +116,26 @@ export function useGameLoop() {
 
     if (obstacleX.value < -OBSTACLE_WIDTH) {
       obstacleX.value = SCREEN_WIDTH;
-      obstacleGapY.value = Math.random() * (SCREEN_HEIGHT - GAP_SIZE - 200) + 100;
+      const scoreNext = scoreSV.value + 1;
+      const nextGap = scoreNext < 16 ? gaps.phase1 :
+                      scoreNext < 31 ? gaps.phase2 : gaps.phase3;
+      currentGapSize.value = nextGap;
+      obstacleGapY.value = Math.random() * (SCREEN_HEIGHT - nextGap - 200) + 100;
       scoreSV.value += 1;
       runOnJS(updateScoreAndCheckPhase)();
     }
 
     const isHittingGround = birdY.value > SCREEN_HEIGHT - BIRD_SIZE;
     const isHittingCeiling = birdY.value < 0;
-    
+
     let isHittingObstacle = false;
-    if (scoreSV.value < 31) {
-      const isWithinObstacleX = 
-        BIRD_X + BIRD_SIZE > obstacleX.value && 
+    if (scoreSV.value < 50) {
+      const isWithinObstacleX =
+        BIRD_X + BIRD_SIZE > obstacleX.value &&
         BIRD_X < obstacleX.value + OBSTACLE_WIDTH;
-        
+
       const isHittingTopObstacle = birdY.value < obstacleGapY.value;
-      const isHittingBottomObstacle = birdY.value + BIRD_SIZE > obstacleGapY.value + GAP_SIZE;
+      const isHittingBottomObstacle = birdY.value + BIRD_SIZE > obstacleGapY.value + currentGapSize.value;
 
       if (isWithinObstacleX && (isHittingTopObstacle || isHittingBottomObstacle)) {
         isHittingObstacle = true;
@@ -143,12 +159,14 @@ export function useGameLoop() {
       playSound('flap');
     } else if (gameState === 'gameOver' || gameState === 'victory') {
       if (gameState === 'victory') {
-        return; 
+        return;
       }
       birdY.value = SCREEN_HEIGHT / 2;
       birdVelocity.value = 0;
       obstacleX.value = SCREEN_WIDTH;
       scoreSV.value = 0;
+      currentGapSize.value = gaps.phase1;
+      obstacleGapY.value = SCREEN_HEIGHT / 2 - gaps.phase1 / 2;
       setScore(0);
       setGameState('idle');
     }
@@ -167,7 +185,7 @@ export function useGameLoop() {
     BIRD_SIZE,
     BIRD_X,
     OBSTACLE_WIDTH,
-    GAP_SIZE,
+    currentGapSize,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
   };

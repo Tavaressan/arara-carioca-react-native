@@ -11,6 +11,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [soundRef, setSoundRef] = useState<Audio.Sound | null>(null);
+  const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
 
   useEffect(() => {
     let sound: Audio.Sound | null = null;
@@ -46,6 +47,11 @@ export default function WelcomeScreen() {
       if (soundRef) {
         soundRef.playAsync().catch(() => {});
       }
+      return () => {
+        if (soundRef) {
+          soundRef.pauseAsync().catch(() => {});
+        }
+      };
     }, [soundRef])
   );
 
@@ -62,7 +68,7 @@ export default function WelcomeScreen() {
     if (soundRef) {
       await soundRef.pauseAsync();
     }
-    navigation.navigate('Game');
+    navigation.navigate('Game', { difficulty });
   };
 
   return (
@@ -81,6 +87,27 @@ export default function WelcomeScreen() {
               style={styles.character} 
               resizeMode="contain"
             />
+
+            <View style={styles.difficultyContainer}>
+              <TouchableOpacity 
+                style={[styles.diffButton, difficulty === 'easy' && styles.diffSelected, { backgroundColor: '#4CAF50' }]} 
+                onPress={() => { handleInteraction(); setDifficulty('easy'); }}
+              >
+                <Text style={styles.diffText}>Fácil</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.diffButton, difficulty === 'normal' && styles.diffSelected, { backgroundColor: '#FFC107' }]} 
+                onPress={() => { handleInteraction(); setDifficulty('normal'); }}
+              >
+                <Text style={styles.diffText}>Médio</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.diffButton, difficulty === 'hard' && styles.diffSelected, { backgroundColor: '#F44336' }]} 
+                onPress={() => { handleInteraction(); setDifficulty('hard'); }}
+              >
+                <Text style={styles.diffText}>Difícil</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity 
@@ -181,6 +208,40 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#fdfbf7',
     textShadowColor: COLORS.dark,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  difficultyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '85%',
+    marginBottom: 20,
+  },
+  diffButton: {
+    flex: 1,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    opacity: 0.7,
+  },
+  diffSelected: {
+    borderColor: '#fdfbf7',
+    opacity: 1,
+    transform: [{ scale: 1.05 }],
+    elevation: 5,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+  },
+  diffText: {
+    fontFamily: FONTS.main,
+    fontSize: 20,
+    color: '#fff',
+    textShadowColor: '#000',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   }
