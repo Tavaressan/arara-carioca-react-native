@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Arara Carioca",
+    "slug": "arara-carioca",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/main_character/tico-azul.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/main_character/tico-azul.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/images/main_character/tico-azul.png"
+    }
+  }
+}
