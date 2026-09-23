@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 
-import Score from '../Score';
+import Score, { getTitle } from '../Score';
 
 describe('<Score />', () => {
   test('exibe o valor numérico do score', async () => {
@@ -13,6 +13,24 @@ describe('<Score />', () => {
   test('exibe o título correspondente à faixa de score', async () => {
     const { getByText } = await render(<Score score={20} />);
 
-    getByText('Boêmio da Lapa');
+    getByText('Sambista de Esquina');
+  });
+});
+
+describe('getTitle - alinhamento com as fases de dificuldade de useGameLoop', () => {
+  test('getTitle(16) retorna o título do início da fase 2 (mesmo limiar que dispara o countdown de fase)', () => {
+    expect(getTitle(16)).toBe('Sambista de Esquina');
+  });
+
+  test('getTitle(31) retorna o título do início da fase 3 (mesmo limiar que dispara o countdown de fase)', () => {
+    expect(getTitle(31)).toBe('Boêmio da Lapa');
+  });
+
+  test('getTitle(50) retorna o título de vitória (mesmo limiar de useGameLoop para victory)', () => {
+    expect(getTitle(50)).toBe('Lenda Carioca');
+  });
+
+  test('getTitle(15) ainda retorna o título da fase 1, um score abaixo do limiar', () => {
+    expect(getTitle(15)).toBe('Turista Perdido');
   });
 });
