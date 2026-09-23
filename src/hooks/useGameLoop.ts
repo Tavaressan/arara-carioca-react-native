@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimated';
 import { Dimensions, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 
 const { width: windowWidth, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
@@ -29,7 +29,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const [countdownValue, setCountdownValue] = useState(3);
 
 
-  const [sounds, setSounds] = useState<any>({});
+  const soundsRef = useRef<Record<string, AudioPlayer>>({});
 
   const birdY = useSharedValue(SCREEN_HEIGHT / 2);
   const birdVelocity = useSharedValue(0);
@@ -40,29 +40,30 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const scoreSV = useSharedValue(0);
 
   useEffect(() => {
-    let loadedSounds: any = {};
-    async function loadSounds() {
-      try {
-        const flap = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/flap.mp3'));
-        const point = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/sfx_point.mp3'));
-        const hit = await Audio.Sound.createAsync(require('../../assets/sounds/sfx/hit-sound.mp3'));
-
-        loadedSounds = { flap: flap.sound, point: point.sound, hit: hit.sound };
-        setSounds(loadedSounds);
-      } catch (e) {
-        console.warn('Could not load some sounds', e);
-      }
+    let players: Record<string, AudioPlayer> = {};
+    try {
+      players = {
+        flap: createAudioPlayer(require('../../assets/sounds/sfx/flap.mp3')),
+        point: createAudioPlayer(require('../../assets/sounds/sfx/sfx_point.mp3')),
+        hit: createAudioPlayer(require('../../assets/sounds/sfx/hit-sound.mp3')),
+      };
+      soundsRef.current = players;
+    } catch (e) {
+      console.warn('Could not load some sounds', e);
     }
-    loadSounds();
 
     return () => {
-      Object.values(loadedSounds).forEach((s: any) => s.unloadAsync());
+      Object.values(players).forEach((player) => player.remove());
     };
   }, []);
 
   const playSound = (name: string) => {
-    if (sounds[name]) {
-      sounds[name].replayAsync();
+    const player = soundsRef.current[name];
+    if (player) {
+      // expo-audio não reseta a posição de playback ao terminar (diferente do
+      // replayAsync do expo-av) — reposiciona manualmente antes de cada disparo.
+      player.seekTo(0);
+      player.play();
     }
   };
 

@@ -4,70 +4,49 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { COLORS, FONTS } from '../constants/theme';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [soundRef, setSoundRef] = useState<Audio.Sound | null>(null);
+  const [soundRef, setSoundRef] = useState<AudioPlayer | null>(null);
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
 
   useEffect(() => {
-    let sound: Audio.Sound | null = null;
-    let isCancelled = false;
+    let player: AudioPlayer | null = null;
 
-    async function initMusic() {
-      try {
-        const { sound: s } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/music/menu-theme.mp3'),
-          { isLooping: true }
-        );
-        if (isCancelled) {
-          s.unloadAsync();
-          return;
-        }
-        sound = s;
-        setSoundRef(s);
-        await sound.playAsync();
-      } catch (e) {
-        console.warn('Sound not found or failed to load:', e);
-      }
+    try {
+      player = createAudioPlayer(require('../../assets/sounds/music/menu-theme.mp3'));
+      player.loop = true;
+      player.play();
+      setSoundRef(player);
+    } catch (e) {
+      console.warn('Sound not found or failed to load:', e);
     }
-    initMusic();
 
     return () => {
-      isCancelled = true;
-      if (sound) sound.unloadAsync();
+      player?.remove();
     };
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
-      if (soundRef) {
-        soundRef.playAsync().catch(() => {});
-      }
+      soundRef?.play();
       return () => {
-        if (soundRef) {
-          soundRef.pauseAsync().catch(() => {});
-        }
+        soundRef?.pause();
       };
     }, [soundRef])
   );
 
-  const handleInteraction = async () => {
-    if (soundRef) {
-      const status = await soundRef.getStatusAsync();
-      if (status.isLoaded && !status.isPlaying) {
-        soundRef.playAsync().catch(() => {});
-      }
+  const handleInteraction = () => {
+    if (soundRef && soundRef.isLoaded && !soundRef.playing) {
+      soundRef.play();
     }
   };
 
-  const startGame = async () => {
-    if (soundRef) {
-      await soundRef.pauseAsync();
-    }
+  const startGame = () => {
+    soundRef?.pause();
     navigation.navigate('Game', { difficulty });
   };
 

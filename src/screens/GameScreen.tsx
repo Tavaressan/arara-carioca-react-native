@@ -7,7 +7,7 @@ import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
 import Score from '../components/Score';
 import { COLORS, FONTS } from '../constants/theme';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useRef } from 'react';
@@ -53,23 +53,22 @@ export function GameScreenInner() {
 
   useFocusEffect(
     React.useCallback(() => {
-      let sound: Audio.Sound | null = null;
+      if (!trackSource) return;
+
+      let player: AudioPlayer | null = null;
       let isCancelled = false;
 
       async function playMusic() {
-        if (!trackSource) return;
         try {
-          const { sound: s } = await Audio.Sound.createAsync(
-            trackSource,
-            { isLooping: true }
-          );
-          if (isCancelled) {
-            s.unloadAsync();
-            return;
-          }
-          sound = s;
+          player = createAudioPlayer(trackSource as number);
+          player.loop = true;
           const savedPosition = trackPositions.current[trackSource as number] || 0;
-          await sound.playFromPositionAsync(savedPosition);
+          // expo-audio não reseta a posição de playback ao terminar (diferente
+          // do playFromPositionAsync do expo-av) — reposiciona manualmente.
+          await player.seekTo(savedPosition);
+          if (!isCancelled) {
+            player.play();
+          }
         } catch (e) {
           console.warn('Music track not found:', e);
         }
@@ -79,15 +78,9 @@ export function GameScreenInner() {
 
       return () => {
         isCancelled = true;
-        if (sound) {
-          sound.getStatusAsync().then(status => {
-            if (status.isLoaded) {
-              trackPositions.current[trackSource as number] = status.positionMillis;
-            }
-            sound?.unloadAsync();
-          }).catch(() => {
-            sound?.unloadAsync();
-          });
+        if (player) {
+          trackPositions.current[trackSource as number] = player.currentTime;
+          player.remove();
         }
       };
     }, [trackSource])
