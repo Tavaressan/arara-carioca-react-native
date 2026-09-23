@@ -3,12 +3,51 @@ import { useBackgroundMusic } from '../useBackgroundMusic';
 
 const mockCalls: string[] = [];
 
-jest.mock('@react-navigation/native', () => ({
-  useFocusEffect: (callback: () => void | (() => void)) => {
-    const React = require('react');
-    React.useEffect(() => callback(), [callback]);
-  },
-}));
+// Modela o useFocusEffect real do @react-navigation/native: o efeito React
+// (keyed em [callback]) roda a cada montagem/troca de dependência (mesmo
+// mecanismo que "descarrega a trilha anterior antes de carregar a nova" usa),
+// enquanto __simulateBlur/__simulateFocus disparam o MESMO callback
+// diretamente, reproduzindo os listeners 'blur'/'focus' que o React
+// Navigation aciona sem re-render nem troca de dependência.
+jest.mock('@react-navigation/native', () => {
+  let currentCallback: (() => void | (() => void)) | null = null;
+  let currentCleanup: void | (() => void);
+
+  return {
+    useFocusEffect: (callback: () => void | (() => void)) => {
+      const React = require('react');
+      React.useEffect(() => {
+        currentCallback = callback;
+        currentCleanup = callback();
+        return () => {
+          if (currentCleanup) {
+            currentCleanup();
+            currentCleanup = undefined;
+          }
+        };
+      }, [callback]);
+    },
+    __simulateBlur: () => {
+      if (currentCleanup) {
+        currentCleanup();
+        currentCleanup = undefined;
+      }
+    },
+    __simulateFocus: () => {
+      if (currentCallback) {
+        currentCleanup = currentCallback();
+      }
+    },
+  };
+});
+
+const {
+  __simulateBlur: simulateBlur,
+  __simulateFocus: simulateFocus,
+} = jest.requireMock('@react-navigation/native') as {
+  __simulateBlur: () => void;
+  __simulateFocus: () => void;
+};
 
 jest.mock('expo-audio', () => ({
   createAudioPlayer: jest.fn((source: unknown) => {
@@ -66,5 +105,22 @@ describe('useBackgroundMusic', () => {
 
     expect(mockCalls).toEqual([]);
     expect(result.current.current).toBeNull();
+  });
+
+  test('reaproveita a mesma instância do player quando trackSource não muda entre focos (focus → blur → focus)', async () => {
+    const { result } = await renderHook(() => useBackgroundMusic('track-a'));
+    await Promise.resolve();
+
+    const player = result.current.current;
+
+    simulateBlur();
+    simulateFocus();
+    await Promise.resolve();
+
+    expect(mockCalls).toEqual(['create:track-a']);
+    expect(player?.remove).not.toHaveBeenCalled();
+    expect(player?.pause).toHaveBeenCalledTimes(1);
+    expect(player?.play).toHaveBeenCalledTimes(2);
+    expect(result.current.current).toBe(player);
   });
 });
