@@ -107,6 +107,17 @@ describe('useBackgroundMusic', () => {
     expect(result.current.current).toBeNull();
   });
 
+  test('descarrega a trilha quando trackSource muda para null', async () => {
+    const { rerender } = await renderHook(
+      ({ track }: { track: string | null }) => useBackgroundMusic(track),
+      { initialProps: { track: 'track-a' as string | null } }
+    );
+
+    await rerender({ track: null });
+
+    expect(mockCalls).toEqual(['create:track-a', 'remove:track-a']);
+  });
+
   test('reaproveita a mesma instância do player quando trackSource não muda entre focos (focus → blur → focus)', async () => {
     const { result } = await renderHook(() => useBackgroundMusic('track-a'));
     await Promise.resolve();

@@ -20,6 +20,9 @@ export function useBackgroundMusic(trackSource: AudioSource | null | undefined) 
   useFocusEffect(
     useCallback(() => {
       if (!trackSource) {
+        if (playerRef.current) {
+          playerRef.current.remove();
+        }
         playerRef.current = null;
         loadedSourceRef.current = null;
         return;
