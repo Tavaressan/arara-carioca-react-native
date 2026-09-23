@@ -7,10 +7,8 @@ import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
 import Score from '../components/Score';
 import { COLORS, FONTS } from '../constants/theme';
-import { createAudioPlayer, AudioPlayer } from 'expo-audio';
-import { useFocusEffect } from '@react-navigation/native';
+import { useBackgroundMusic } from '../hooks/useBackgroundMusic';
 import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
-import { useRef } from 'react';
 
 export function GameScreenInner() {
   const navigation = useNavigation();
@@ -49,42 +47,7 @@ export function GameScreenInner() {
   };
 
   const trackSource = getCurrentTrack();
-  const trackPositions = useRef<{ [key: number]: number }>({});
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!trackSource) return;
-
-      let player: AudioPlayer | null = null;
-      let isCancelled = false;
-
-      async function playMusic() {
-        try {
-          player = createAudioPlayer(trackSource as number);
-          player.loop = true;
-          const savedPosition = trackPositions.current[trackSource as number] || 0;
-          // expo-audio não reseta a posição de playback ao terminar (diferente
-          // do playFromPositionAsync do expo-av) — reposiciona manualmente.
-          await player.seekTo(savedPosition);
-          if (!isCancelled) {
-            player.play();
-          }
-        } catch (e) {
-          console.warn('Music track not found:', e);
-        }
-      }
-
-      playMusic();
-
-      return () => {
-        isCancelled = true;
-        if (player) {
-          trackPositions.current[trackSource as number] = player.currentTime;
-          player.remove();
-        }
-      };
-    }, [trackSource])
-  );
+  useBackgroundMusic(trackSource);
 
   useEffect(() => {
     if (gameState === 'victory') {

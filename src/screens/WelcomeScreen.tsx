@@ -1,52 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, Image, TouchableWithoutFeedback } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { COLORS, FONTS } from '../constants/theme';
-import { createAudioPlayer, AudioPlayer } from 'expo-audio';
+import { useBackgroundMusic } from '../hooks/useBackgroundMusic';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [soundRef, setSoundRef] = useState<AudioPlayer | null>(null);
+  const musicPlayer = useBackgroundMusic(require('../../assets/sounds/music/menu-theme.mp3'));
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
 
-  useEffect(() => {
-    let player: AudioPlayer | null = null;
-
-    try {
-      player = createAudioPlayer(require('../../assets/sounds/music/menu-theme.mp3'));
-      player.loop = true;
-      player.play();
-      setSoundRef(player);
-    } catch (e) {
-      console.warn('Sound not found or failed to load:', e);
-    }
-
-    return () => {
-      player?.remove();
-    };
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      soundRef?.play();
-      return () => {
-        soundRef?.pause();
-      };
-    }, [soundRef])
-  );
-
   const handleInteraction = () => {
-    if (soundRef && soundRef.isLoaded && !soundRef.playing) {
-      soundRef.play();
+    const player = musicPlayer.current;
+    if (player && player.isLoaded && !player.playing) {
+      player.play();
     }
   };
 
   const startGame = () => {
-    soundRef?.pause();
+    musicPlayer.current?.pause();
     navigation.navigate('Game', { difficulty });
   };
 
