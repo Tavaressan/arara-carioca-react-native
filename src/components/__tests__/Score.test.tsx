@@ -34,3 +34,17 @@ describe('getTitle - alinhamento com as fases de dificuldade de useGameLoop', ()
     expect(getTitle(15)).toBe('Turista Perdido');
   });
 });
+
+describe('getTitle - subfaixa "Rei dos Arcos" (só HUD, sem fase de dificuldade correspondente)', () => {
+  test('getTitle(45) retorna "Rei dos Arcos"', () => {
+    expect(getTitle(45)).toBe('Rei dos Arcos');
+  });
+
+  test('getTitle(44) ainda retorna "Boêmio da Lapa", um score abaixo do limiar de "Rei dos Arcos"', () => {
+    expect(getTitle(44)).toBe('Boêmio da Lapa');
+  });
+
+  test('getTitle(49) ainda retorna "Rei dos Arcos", um score abaixo da vitória', () => {
+    expect(getTitle(49)).toBe('Rei dos Arcos');
+  });
+});
