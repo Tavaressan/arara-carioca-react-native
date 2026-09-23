@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableWithoutFeedback, Text, TouchableOpacity, Ima
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { useGameLoop } from '../hooks/useGameLoop';
+import { useHighScore } from '../hooks/useHighScore';
 import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
 import Score from '../components/Score';
@@ -36,6 +37,13 @@ export function GameScreenInner() {
   } = useGameLoop(difficulty);
 
   const [canExitVictory, setCanExitVictory] = useState(false);
+  const { setScore: setHighScore } = useHighScore();
+
+  useEffect(() => {
+    if (gameState === 'gameOver' || gameState === 'victory') {
+      setHighScore(score);
+    }
+  }, [gameState, score, setHighScore]);
 
   const getCurrentTrack = () => {
     if (gameState === 'victory') return require('../../assets/sounds/music/last-party-music.mp3');
