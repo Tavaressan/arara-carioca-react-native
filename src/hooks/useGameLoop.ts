@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimated';
-import { Dimensions, Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Audio } from 'expo-av';
 import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
-
-const { width: windowWidth, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
 
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+  const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
+
   const getPhaseGaps = () => {
     switch (difficulty) {
       case 'easy': return { phase1: 650, phase2: 550, phase3: 450 };
