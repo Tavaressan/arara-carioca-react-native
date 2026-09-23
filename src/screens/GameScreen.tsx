@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableWithoutFeedback, Text, TouchableOpacity, Ima
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { useGameLoop } from '../hooks/useGameLoop';
+import { useHighScore } from '../hooks/useHighScore';
 import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
 import Score from '../components/Score';
@@ -36,6 +37,13 @@ export function GameScreenInner() {
   } = useGameLoop(difficulty);
 
   const [canExitVictory, setCanExitVictory] = useState(false);
+  const { setScore: setHighScore } = useHighScore();
+
+  useEffect(() => {
+    if (gameState === 'gameOver' || gameState === 'victory') {
+      setHighScore(score);
+    }
+  }, [gameState, score, setHighScore]);
 
   const getCurrentTrack = () => {
     if (gameState === 'victory') return require('../../assets/sounds/music/last-party-music.mp3');
@@ -176,31 +184,25 @@ export function GameScreenInner() {
         />
 
         <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-          {gameState !== 'victory' && (
+          {gameState !== 'victory' && <Score score={score} />}
+
+          {score < 50 && (
             <>
-              <Score score={score} />
+              <Obstacle
+                x={obstacleX}
+                y={obstacleGapY.value - SCREEN_HEIGHT}
+                width={OBSTACLE_WIDTH}
+                height={SCREEN_HEIGHT}
+                isTop={true}
+              />
 
-              {score < 50 && (
-                <>
-                  <Obstacle
-                    x={obstacleX}
-                    y={obstacleGapY.value - SCREEN_HEIGHT}
-                    width={OBSTACLE_WIDTH}
-                    height={SCREEN_HEIGHT}
-                    isTop={true}
-                  />
-
-                  <Obstacle
-                    x={obstacleX}
-                    y={obstacleGapY.value + currentGapSize.value}
-                    width={OBSTACLE_WIDTH}
-                    height={SCREEN_HEIGHT}
-                    isTop={false}
-                  />
-                </>
-              )}
-
-              <Bird x={BIRD_X} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
+              <Obstacle
+                x={obstacleX}
+                y={obstacleGapY.value + currentGapSize.value}
+                width={OBSTACLE_WIDTH}
+                height={SCREEN_HEIGHT}
+                isTop={false}
+              />
             </>
           )}
 
@@ -247,6 +249,10 @@ export function GameScreenInner() {
               )}
             </View>
           )}
+
+          {/* Renderizado por último para ficar acima do victoryOverlay (que não define zIndex),
+              já que idle/countdown/gameOver usam styles.overlay com zIndex:200 e continuam por cima. */}
+          <Bird x={BIRD_X} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
         </View>
       </View>
     </TouchableWithoutFeedback>

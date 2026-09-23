@@ -12,6 +12,9 @@ import {
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
+const VICTORY_FLOAT_AMPLITUDE = 20;
+const VICTORY_FLOAT_SPEED = 0.04;
+const VICTORY_VELOCITY_EASE_FRAMES = 15;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -41,6 +44,10 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const currentGapSize = useSharedValue(gaps.phase1);
   const obstacleGapY = useSharedValue(SCREEN_HEIGHT / 2 - gaps.phase1 / 2);
   const scoreSV = useSharedValue(0);
+
+  const victoryBaseline = useSharedValue(SCREEN_HEIGHT / 2);
+  const victoryFrame = useSharedValue(0);
+  const victoryEntryVelocity = useSharedValue(0);
 
   useEffect(() => {
     let loadedSounds: any = {};
@@ -109,7 +116,32 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     }
   }, [gameState, birdY, birdVelocity, obstacleX]);
 
+  useEffect(() => {
+    if (gameState === 'victory') {
+      // Parte da posição e da velocidade atuais do pássaro para não gerar salto visual
+      // (nem de posição, nem de inclinação) ao entrar na vitória.
+      victoryBaseline.value = birdY.value;
+      victoryEntryVelocity.value = birdVelocity.value;
+      victoryFrame.value = 0;
+    }
+  }, [gameState, birdY, birdVelocity, victoryBaseline, victoryEntryVelocity, victoryFrame]);
+
   useFrameCallback((frameInfo) => {
+    if (gameState === 'victory') {
+      // Flutuação senoidal em vez de física de gravidade/pulo; velocidade é a derivada
+      // do seno, mantida na mesma unidade "px por frame" da física de jogo, para que a
+      // inclinação do pássaro em Bird.tsx continue coerente. A velocidade parte da que
+      // o pássaro tinha ao entrar na vitória e converge para a da flutuação em alguns
+      // frames, evitando uma mudança brusca de inclinação.
+      victoryFrame.value += 1;
+      const angle = victoryFrame.value * VICTORY_FLOAT_SPEED;
+      birdY.value = victoryBaseline.value + Math.sin(angle) * VICTORY_FLOAT_AMPLITUDE;
+      const floatVelocity = Math.cos(angle) * VICTORY_FLOAT_AMPLITUDE * VICTORY_FLOAT_SPEED;
+      const ease = Math.min(victoryFrame.value / VICTORY_VELOCITY_EASE_FRAMES, 1);
+      birdVelocity.value = victoryEntryVelocity.value + (floatVelocity - victoryEntryVelocity.value) * ease;
+      return;
+    }
+
     if (gameState !== 'playing') return;
 
     const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
