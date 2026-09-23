@@ -8,10 +8,8 @@ import Bird from '../components/Bird';
 import Obstacle from '../components/Obstacle';
 import Score from '../components/Score';
 import { COLORS, FONTS } from '../constants/theme';
-import { Audio } from 'expo-av';
-import { useFocusEffect } from '@react-navigation/native';
+import { useBackgroundMusic } from '../hooks/useBackgroundMusic';
 import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
-import { useRef } from 'react';
 
 export function GameScreenInner() {
   const navigation = useNavigation();
@@ -57,49 +55,7 @@ export function GameScreenInner() {
   };
 
   const trackSource = getCurrentTrack();
-  const trackPositions = useRef<{ [key: number]: number }>({});
-
-  useFocusEffect(
-    React.useCallback(() => {
-      let sound: Audio.Sound | null = null;
-      let isCancelled = false;
-
-      async function playMusic() {
-        if (!trackSource) return;
-        try {
-          const { sound: s } = await Audio.Sound.createAsync(
-            trackSource,
-            { isLooping: true }
-          );
-          if (isCancelled) {
-            s.unloadAsync();
-            return;
-          }
-          sound = s;
-          const savedPosition = trackPositions.current[trackSource as number] || 0;
-          await sound.playFromPositionAsync(savedPosition);
-        } catch (e) {
-          console.warn('Music track not found:', e);
-        }
-      }
-
-      playMusic();
-
-      return () => {
-        isCancelled = true;
-        if (sound) {
-          sound.getStatusAsync().then(status => {
-            if (status.isLoaded) {
-              trackPositions.current[trackSource as number] = status.positionMillis;
-            }
-            sound?.unloadAsync();
-          }).catch(() => {
-            sound?.unloadAsync();
-          });
-        }
-      };
-    }, [trackSource])
-  );
+  useBackgroundMusic(trackSource);
 
   useEffect(() => {
     if (gameState === 'victory') {
