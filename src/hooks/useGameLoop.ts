@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimated';
 import { Dimensions, Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
 
 const { width: windowWidth, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
 
-const GRAVITY = 0.5;
-const JUMP_FORCE = -10;
-const OBSTACLE_SPEED = 4;
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
@@ -109,10 +107,14 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   useFrameCallback((frameInfo) => {
     if (gameState !== 'playing') return;
 
-    birdVelocity.value += GRAVITY;
-    birdY.value += birdVelocity.value;
-
-    obstacleX.value -= OBSTACLE_SPEED;
+    const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
+    const nextPhysics = applyPhysicsStep(
+      { birdVelocity: birdVelocity.value, birdY: birdY.value, obstacleX: obstacleX.value },
+      deltaMs
+    );
+    birdVelocity.value = nextPhysics.birdVelocity;
+    birdY.value = nextPhysics.birdY;
+    obstacleX.value = nextPhysics.obstacleX;
 
     if (obstacleX.value < -OBSTACLE_WIDTH) {
       obstacleX.value = SCREEN_WIDTH;
