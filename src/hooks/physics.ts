@@ -14,6 +14,7 @@ export interface PhysicsState {
 }
 
 export function applyPhysicsStep(state: PhysicsState, deltaMs: number): PhysicsState {
+  'worklet';
   const timeScale = deltaMs / REFERENCE_FRAME_MS;
   const birdVelocity = state.birdVelocity + GRAVITY * timeScale;
   const birdY = state.birdY + birdVelocity * timeScale;
