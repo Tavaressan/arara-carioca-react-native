@@ -40,7 +40,7 @@ describe('useHighScore', () => {
 
     await unmount();
 
-    const { result: reloaded } = await renderHook(() => useHighScore());
+    const { result: reloaded, unmount: unmountReloaded } = await renderHook(() => useHighScore());
 
     await waitFor(() => {
       expect(reloaded.current.highScore).toBe(30);
@@ -51,5 +51,13 @@ describe('useHighScore', () => {
     });
 
     expect(reloaded.current.highScore).toBe(30);
+
+    await unmountReloaded();
+
+    const { result: reloadedAgain } = await renderHook(() => useHighScore());
+
+    await waitFor(() => {
+      expect(reloadedAgain.current.highScore).toBe(30);
+    });
   });
 });
