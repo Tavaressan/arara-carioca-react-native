@@ -11,12 +11,18 @@ interface ScoreProps {
   score: number;
 }
 
-// Limiares alinhados às fases de dificuldade de useGameLoop (PHASE_2/PHASE_3/VICTORY),
-// para que o título mude exatamente quando a fase muda.
+// Subfaixa só de HUD (flavor text), sem fase de dificuldade real correspondente em
+// useGameLoop — por isso não muda o instante do countdown de fase, diferente de
+// PHASE_2/PHASE_3/VICTORY, que estão alinhados a useGameLoop de propósito.
+const REI_DOS_ARCOS_SCORE_THRESHOLD = 45;
+
+// Limiares de fase alinhados a useGameLoop (PHASE_2/PHASE_3/VICTORY), para que o
+// título mude exatamente quando a fase muda.
 export function getTitle(s: number) {
   if (s < PHASE_2_SCORE_THRESHOLD) return 'Turista Perdido';
   if (s < PHASE_3_SCORE_THRESHOLD) return 'Sambista de Esquina';
-  if (s < VICTORY_SCORE_THRESHOLD) return 'Boêmio da Lapa';
+  if (s < REI_DOS_ARCOS_SCORE_THRESHOLD) return 'Boêmio da Lapa';
+  if (s < VICTORY_SCORE_THRESHOLD) return 'Rei dos Arcos';
   return 'Lenda Carioca';
 }
 
