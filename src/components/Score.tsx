@@ -1,20 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../constants/theme';
+import {
+  PHASE_2_SCORE_THRESHOLD,
+  PHASE_3_SCORE_THRESHOLD,
+  VICTORY_SCORE_THRESHOLD,
+} from '../constants/gamePhases';
 
 interface ScoreProps {
   score: number;
 }
 
-export default function Score({ score }: ScoreProps) {
-  const getTitle = (s: number) => {
-    if (s <= 5) return 'Turista Perdido';
-    if (s <= 15) return 'Sambista de Esquina';
-    if (s <= 30) return 'Boêmio da Lapa';
-    if (s <= 50) return 'Rei dos Arcos';
-    return 'Lenda Carioca';
-  };
+// Limiares alinhados às fases de dificuldade de useGameLoop (PHASE_2/PHASE_3/VICTORY),
+// para que o título mude exatamente quando a fase muda.
+export function getTitle(s: number) {
+  if (s < PHASE_2_SCORE_THRESHOLD) return 'Turista Perdido';
+  if (s < PHASE_3_SCORE_THRESHOLD) return 'Sambista de Esquina';
+  if (s < VICTORY_SCORE_THRESHOLD) return 'Boêmio da Lapa';
+  return 'Lenda Carioca';
+}
 
+export default function Score({ score }: ScoreProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.scoreText}>{score}</Text>

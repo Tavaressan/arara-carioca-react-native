@@ -3,6 +3,11 @@ import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimat
 import { Platform, useWindowDimensions } from 'react-native';
 import { Audio } from 'expo-av';
 import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
+import {
+  PHASE_2_SCORE_THRESHOLD,
+  PHASE_3_SCORE_THRESHOLD,
+  VICTORY_SCORE_THRESHOLD,
+} from '../constants/gamePhases';
 
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
@@ -73,9 +78,9 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     setScore((s) => {
       playSound('point');
       const newScore = s + 1;
-      if (newScore === 50) {
+      if (newScore === VICTORY_SCORE_THRESHOLD) {
         setGameState('victory');
-      } else if (newScore === 16 || newScore === 31) {
+      } else if (newScore === PHASE_2_SCORE_THRESHOLD || newScore === PHASE_3_SCORE_THRESHOLD) {
         setGameState('countdown');
         setCountdownValue(3);
       }
@@ -119,8 +124,8 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     if (obstacleX.value < -OBSTACLE_WIDTH) {
       obstacleX.value = SCREEN_WIDTH;
       const scoreNext = scoreSV.value + 1;
-      const nextGap = scoreNext < 16 ? gaps.phase1 :
-                      scoreNext < 31 ? gaps.phase2 : gaps.phase3;
+      const nextGap = scoreNext < PHASE_2_SCORE_THRESHOLD ? gaps.phase1 :
+                      scoreNext < PHASE_3_SCORE_THRESHOLD ? gaps.phase2 : gaps.phase3;
       currentGapSize.value = nextGap;
       obstacleGapY.value = Math.random() * (SCREEN_HEIGHT - nextGap - 200) + 100;
       scoreSV.value += 1;
@@ -131,7 +136,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     const isHittingCeiling = birdY.value < 0;
 
     let isHittingObstacle = false;
-    if (scoreSV.value < 50) {
+    if (scoreSV.value < VICTORY_SCORE_THRESHOLD) {
       const isWithinObstacleX =
         BIRD_X + BIRD_SIZE > obstacleX.value &&
         BIRD_X < obstacleX.value + OBSTACLE_WIDTH;
