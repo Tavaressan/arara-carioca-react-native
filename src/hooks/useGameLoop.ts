@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimated';
-import { Dimensions, Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Audio } from 'expo-av';
+import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
+import {
+  PHASE_2_SCORE_THRESHOLD,
+  PHASE_3_SCORE_THRESHOLD,
+  VICTORY_SCORE_THRESHOLD,
+} from '../constants/gamePhases';
 
-const { width: windowWidth, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
-
-const GRAVITY = 0.5;
-const JUMP_FORCE = -10;
-const OBSTACLE_SPEED = 4;
 const BIRD_SIZE = 110;
 const BIRD_X = 50;
 const OBSTACLE_WIDTH = 120;
@@ -17,6 +17,9 @@ const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+  const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
+
   const getPhaseGaps = () => {
     switch (difficulty) {
       case 'easy': return { phase1: 650, phase2: 550, phase3: 450 };
@@ -82,9 +85,9 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     setScore((s) => {
       playSound('point');
       const newScore = s + 1;
-      if (newScore === 50) {
+      if (newScore === VICTORY_SCORE_THRESHOLD) {
         setGameState('victory');
-      } else if (newScore === 16 || newScore === 31) {
+      } else if (newScore === PHASE_2_SCORE_THRESHOLD || newScore === PHASE_3_SCORE_THRESHOLD) {
         setGameState('countdown');
         setCountdownValue(3);
       }
@@ -141,16 +144,20 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
 
     if (gameState !== 'playing') return;
 
-    birdVelocity.value += GRAVITY;
-    birdY.value += birdVelocity.value;
-
-    obstacleX.value -= OBSTACLE_SPEED;
+    const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
+    const nextPhysics = applyPhysicsStep(
+      { birdVelocity: birdVelocity.value, birdY: birdY.value, obstacleX: obstacleX.value },
+      deltaMs
+    );
+    birdVelocity.value = nextPhysics.birdVelocity;
+    birdY.value = nextPhysics.birdY;
+    obstacleX.value = nextPhysics.obstacleX;
 
     if (obstacleX.value < -OBSTACLE_WIDTH) {
       obstacleX.value = SCREEN_WIDTH;
       const scoreNext = scoreSV.value + 1;
-      const nextGap = scoreNext < 16 ? gaps.phase1 :
-                      scoreNext < 31 ? gaps.phase2 : gaps.phase3;
+      const nextGap = scoreNext < PHASE_2_SCORE_THRESHOLD ? gaps.phase1 :
+                      scoreNext < PHASE_3_SCORE_THRESHOLD ? gaps.phase2 : gaps.phase3;
       currentGapSize.value = nextGap;
       obstacleGapY.value = Math.random() * (SCREEN_HEIGHT - nextGap - 200) + 100;
       scoreSV.value += 1;
@@ -161,7 +168,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     const isHittingCeiling = birdY.value < 0;
 
     let isHittingObstacle = false;
-    if (scoreSV.value < 50) {
+    if (scoreSV.value < VICTORY_SCORE_THRESHOLD) {
       const isWithinObstacleX =
         BIRD_X + BIRD_SIZE > obstacleX.value &&
         BIRD_X < obstacleX.value + OBSTACLE_WIDTH;
