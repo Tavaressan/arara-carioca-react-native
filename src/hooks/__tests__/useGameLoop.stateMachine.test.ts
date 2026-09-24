@@ -1,34 +1,22 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { REFERENCE_FRAME_MS } from '../physics';
 import { PHASE_2_SCORE_THRESHOLD, PHASE_3_SCORE_THRESHOLD, VICTORY_SCORE_THRESHOLD } from '../../constants/gamePhases';
+import type { FrameCallback } from '../testUtils/reanimatedMock';
 
-// Tipo mínimo do frameInfo consumido pelo callback registrado via useFrameCallback.
-type FrameInfo = { timeSincePreviousFrame: number | null };
-type FrameCallback = (frameInfo: FrameInfo) => void;
-
-// react-native-reanimated exige inicialização nativa (worklets), indisponível no ambiente de
-// teste. Diferente do mock de useGameLoop.dimensions.test.ts (que descarta o callback de frame,
-// pois só cobre estados fora de 'playing'), aqui capturamos o callback passado a
-// useFrameCallback numa variável de escopo do módulo, para poder invocá-lo manualmente a partir
-// dos testes e simular o avanço de frames.
+// Diferente do mock de useGameLoop.dimensions.test.ts (que descarta o callback de frame, pois só
+// cobre estados fora de 'playing'), aqui capturamos o callback passado a useFrameCallback numa
+// variável de escopo do módulo, para poder invocá-lo manualmente a partir dos testes e simular o
+// avanço de frames.
 let capturedFrameCallback: FrameCallback | null = null;
 
-jest.mock('react-native-reanimated', () => ({
-  useSharedValue: (initial: unknown) => ({ value: initial }),
-  useFrameCallback: (cb: FrameCallback) => {
+jest.mock('react-native-reanimated', () => {
+  const { createReanimatedMock } = require('../testUtils/reanimatedMock');
+  return createReanimatedMock((cb: FrameCallback) => {
     capturedFrameCallback = cb;
-    return { setActive: jest.fn() };
-  },
-  runOnJS: (fn: (...args: unknown[]) => unknown) => fn,
-}));
+  });
+});
 
-jest.mock('expo-audio', () => ({
-  createAudioPlayer: jest.fn(() => ({
-    play: jest.fn(),
-    seekTo: jest.fn(() => Promise.resolve()),
-    remove: jest.fn(),
-  })),
-}));
+jest.mock('expo-audio', () => require('../testUtils/reanimatedMock').createExpoAudioMock());
 
 import { useGameLoop } from '../useGameLoop';
 
@@ -104,8 +92,20 @@ describe('useGameLoop - máquina de estados', () => {
         });
       };
 
+      // Gaps de obstáculo por fase para a dificuldade 'normal' (ver getPhaseGaps em useGameLoop.ts).
+      const GAP_PHASE_1 = 550;
+      const GAP_PHASE_2 = 450;
+      const GAP_PHASE_3 = 350;
+      const expectedGapForScore = (nextScore: number) =>
+        nextScore < PHASE_2_SCORE_THRESHOLD ? GAP_PHASE_1 :
+        nextScore < PHASE_3_SCORE_THRESHOLD ? GAP_PHASE_2 : GAP_PHASE_3;
+
       for (let target = 1; target <= VICTORY_SCORE_THRESHOLD; target++) {
         await passOneObstacle();
+
+        // scoreSV precisa acumular de verdade entre frames (não resetar a cada render) para que
+        // o gap do próximo obstáculo seja escolhido pela fase correta.
+        expect(result.current.currentGapSize.value).toBe(expectedGapForScore(target));
 
         if (target === PHASE_2_SCORE_THRESHOLD || target === PHASE_3_SCORE_THRESHOLD) {
           expect(result.current.gameState).toBe('countdown');

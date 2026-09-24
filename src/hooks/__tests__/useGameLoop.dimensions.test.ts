@@ -1,20 +1,13 @@
 import { renderHook } from '@testing-library/react-native';
 
 // react-native-reanimated exige inicialização nativa (worklets), indisponível no ambiente
-// de teste. Mock mínimo suficiente para renderizar useGameLoop fora do estado 'playing'.
-jest.mock('react-native-reanimated', () => ({
-  useSharedValue: (initial: unknown) => ({ value: initial }),
-  useFrameCallback: () => undefined,
-  runOnJS: (fn: (...args: unknown[]) => unknown) => fn,
-}));
+// de teste. Mock mínimo suficiente para renderizar useGameLoop fora do estado 'playing'
+// (o callback de useFrameCallback não é capturado, pois este teste não avança frames).
+jest.mock('react-native-reanimated', () =>
+  require('../testUtils/reanimatedMock').createReanimatedMock()
+);
 
-jest.mock('expo-audio', () => ({
-  createAudioPlayer: jest.fn(() => ({
-    play: jest.fn(),
-    seekTo: jest.fn(() => Promise.resolve()),
-    remove: jest.fn(),
-  })),
-}));
+jest.mock('expo-audio', () => require('../testUtils/reanimatedMock').createExpoAudioMock());
 
 import { useGameLoop } from '../useGameLoop';
 
