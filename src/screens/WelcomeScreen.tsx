@@ -141,10 +141,12 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: '100%',
+    maxWidth: 400,
     alignItems: 'center',
   },
   button: {
     width: '80%',
+    maxWidth: 320,
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -169,6 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '85%',
+    maxWidth: 360,
     marginBottom: 20,
   },
   diffButton: {

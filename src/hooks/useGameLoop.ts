@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimated';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
 import {
@@ -17,8 +17,7 @@ const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
-  const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
-  const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(windowWidth, 800) : windowWidth;
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
   const getPhaseGaps = () => {
     switch (difficulty) {

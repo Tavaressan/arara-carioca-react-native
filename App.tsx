@@ -32,14 +32,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     flex: 1,
     width: '100%',
-    // Limita a largura no desktop para simular tela de celular/tablet em pé e permitir scroll real do cenário
-    maxWidth: Platform.OS === 'web' ? 800 : undefined,
+    height: '100%',
     overflow: 'hidden',
     backgroundColor: '#000',
   }
