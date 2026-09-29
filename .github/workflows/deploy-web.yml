@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Setup Expo and EAS CLI
@@ -36,6 +36,6 @@ jobs:
         run: npx expo export --platform web
 
       - name: Deploy to EAS Hosting
-        run: eas deploy --prod
+        run: eas deploy --prod --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
