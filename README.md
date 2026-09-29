@@ -2,6 +2,21 @@
 
 Bem-vindo ao repositório do **Arara Carioca**, um jogo divertido e interativo desenvolvido em React Native com a plataforma Expo. O jogo desafia o jogador a controlar uma arara simpática, desviar dos pilares pelo caminho e tentar alcançar a pontuação máxima!
 
+## 🌐 Jogue Online
+
+Experimente o **Arara Carioca** sem precisar clonar ou compilar o projeto:
+
+| Plataforma | Acesso | Descrição |
+| :--- | :--- | :--- |
+| 🌐 **Navegador Web** | [**Jogar no Navegador**](https://arara-carioca.expo.app) | Versão web estática hospedada via EAS Hosting, compatível com navegadores desktop e mobile. |
+| 📱 **Android (APK)** | [**Baixar APK Preview**](https://expo.dev/artifacts/eas/arara-carioca-preview.apk) | Build de preview gerada via EAS Build para instalação direta em smartphones Android. |
+
+### 📲 Instruções para instalação do APK (Android)
+1. Faça o download do arquivo `.apk` diretamente pelo link acima no seu smartphone.
+2. Ao concluir o download, abra o arquivo baixado.
+3. Caso o Android solicite permissão, autorize a **instalação de apps de fontes desconhecidas** para o seu navegador ou gerenciador de arquivos.
+4. Conclua a instalação e divirta-se jogando!
+
 ## 🎮 Sobre o Jogo
 
 O **Arara Carioca** traz mecânicas inspiradas nos clássicos jogos arcade, mas com um toque especial e progressivo!
