@@ -8,11 +8,11 @@ Experimente o **Arara Carioca** sem precisar clonar ou compilar o projeto:
 
 | Plataforma | Acesso | Descrição |
 | :--- | :--- | :--- |
-| 🌐 **Navegador Web** | [**Jogar no Navegador**](https://arara-carioca.expo.app) | Versão web estática hospedada via EAS Hosting, compatível com navegadores desktop e mobile. |
-| 📱 **Android (APK)** | [**Baixar APK Preview**](https://expo.dev/artifacts/eas/arara-carioca-preview.apk) | Build de preview gerada via EAS Build para instalação direta em smartphones Android. |
+| 🌐 **Navegador Web** | [**Jogar no Navegador**](https://arara-carioca.expo.app) | Versão web estática hospedada via EAS Hosting (produção ativa), compatível com desktop e mobile. |
+| 📱 **Android (APK)** | [**Painel de Builds / Download APK**](https://expo.dev/accounts/tavaressan/projects/arara-carioca/builds) | Build de preview gerada via EAS Build para instalação direta em smartphones Android. |
 
 ### 📲 Instruções para instalação do APK (Android)
-1. Faça o download do arquivo `.apk` diretamente pelo link acima no seu smartphone.
+1. Acesse o [Painel de Builds do EAS](https://expo.dev/accounts/tavaressan/projects/arara-carioca/builds) e faça o download da última build Android disponível (ou rode `npm run build:android`).
 2. Ao concluir o download, abra o arquivo baixado.
 3. Caso o Android solicite permissão, autorize a **instalação de apps de fontes desconhecidas** para o seu navegador ou gerenciador de arquivos.
 4. Conclua a instalação e divirta-se jogando!
