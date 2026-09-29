@@ -169,56 +169,68 @@ describe('useGameLoop - voo do pássaro na vitória', () => {
     jest.useRealTimers();
   });
 
-  test('em victory, o X do pássaro avança, cruza a largura da tela e reinicia à esquerda em loop, mantendo a flutuação em Y', async () => {
+  test('ao entrar em victory o voo recomeça: progresso zerado e pássaro fora da tela, à esquerda', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
     await enterVictory(result);
     expect(result.current.gameState).toBe('victory');
 
-    const { birdX, birdY, BIRD_X, BIRD_SIZE } = result.current;
-    expect(birdX.value).toBe(BIRD_X);
+    expect(result.current.victoryProgress.value).toBe(0);
+    expect(result.current.birdX.value).toBe(-result.current.BIRD_SIZE);
+  });
 
-    const xs: number[] = [birdX.value];
-    const ys: number[] = [birdY.value];
+  test('em victory, o pássaro cruza a tela da esquerda para a direita uma única vez, acompanhando o progresso do fundo, e para fora da tela', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal'));
+    await enterVictory(result);
+    expect(result.current.gameState).toBe('victory');
+
+    const { birdX, birdY, victoryProgress, BIRD_SIZE } = result.current;
+
+    const progresses: number[] = [];
+    const xs: number[] = [];
+    const ys: number[] = [];
+    // Frames de 100 ms: bem mais que 60 fps, para percorrer o voo inteiro em poucas iterações.
     for (let frame = 0; frame < 300; frame++) {
-      await advanceFrame(REFERENCE_FRAME_MS);
+      await advanceFrame(100);
+      progresses.push(victoryProgress.value);
       xs.push(birdX.value);
       ys.push(birdY.value);
     }
 
-    // O X sobe frame a frame até o pássaro passar da borda direita...
-    const wrapIndex = xs.findIndex((x, i) => i > 0 && x < xs[i - 1]);
-    expect(wrapIndex).toBeGreaterThan(1);
-    for (let i = 1; i < wrapIndex; i++) {
-      expect(xs[i]).toBeGreaterThan(xs[i - 1]);
+    // O progresso só cresce e trava em 1 (sem reiniciar: é uma passada única)...
+    for (let i = 1; i < progresses.length; i++) {
+      expect(progresses[i]).toBeGreaterThanOrEqual(progresses[i - 1]);
     }
-    expect(xs[wrapIndex - 1]).toBeGreaterThan(SCREEN_WIDTH);
+    expect(progresses[progresses.length - 1]).toBe(1);
 
-    // ...reaparece imediatamente à esquerda (todo o pássaro fora da tela) e volta a avançar.
-    expect(xs[wrapIndex]).toBe(-BIRD_SIZE);
-    expect(xs[wrapIndex + 1]).toBeGreaterThan(xs[wrapIndex]);
+    // ...e o X do pássaro acompanha o progresso: do lado esquerdo (fora da tela) ao direito.
+    xs.forEach((x, i) => {
+      expect(x).toBeCloseTo(-BIRD_SIZE + progresses[i] * (SCREEN_WIDTH + BIRD_SIZE), 5);
+    });
+    expect(xs[0]).toBeLessThan(SCREEN_WIDTH / 2);
+    expect(xs[xs.length - 1]).toBe(SCREEN_WIDTH);
 
     // A flutuação senoidal em Y continua ativa durante o voo.
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(1);
   });
 
-  test('em victory, o deslocamento horizontal é proporcional ao tempo do frame (independe da taxa de quadros)', async () => {
+  test('em victory, o avanço do voo é proporcional ao tempo do frame (independe da taxa de quadros)', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
     await enterVictory(result);
     expect(result.current.gameState).toBe('victory');
 
-    const { birdX } = result.current;
-    const startX = birdX.value;
+    const { victoryProgress } = result.current;
+    const startProgress = victoryProgress.value;
     await advanceFrame(REFERENCE_FRAME_MS);
-    const singleFrameStep = birdX.value - startX;
+    const singleFrameStep = victoryProgress.value - startProgress;
 
-    const beforeDoubleFrame = birdX.value;
+    const beforeDoubleFrame = victoryProgress.value;
     await advanceFrame(REFERENCE_FRAME_MS * 2);
 
     expect(singleFrameStep).toBeGreaterThan(0);
-    expect(birdX.value - beforeDoubleFrame).toBeCloseTo(singleFrameStep * 2, 5);
+    expect(victoryProgress.value - beforeDoubleFrame).toBeCloseTo(singleFrameStep * 2, 8);
   });
 
-  test('fora de victory o X do pássaro permanece em BIRD_X', async () => {
+  test('fora de victory o X do pássaro permanece em BIRD_X e o progresso do voo em 0', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
 
     await act(async () => {
@@ -228,5 +240,6 @@ describe('useGameLoop - voo do pássaro na vitória', () => {
 
     expect(result.current.gameState).toBe('playing');
     expect(result.current.birdX.value).toBe(result.current.BIRD_X);
+    expect(result.current.victoryProgress.value).toBe(0);
   });
 });

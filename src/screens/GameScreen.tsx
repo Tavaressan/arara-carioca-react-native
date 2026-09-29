@@ -23,6 +23,7 @@ export function GameScreenInner() {
     birdY,
     birdVelocity,
     birdX,
+    victoryProgress,
     obstacleX,
     obstacleGapY,
     scoreSV,
@@ -88,7 +89,14 @@ export function GameScreenInner() {
   const aspect = 1672 / 941;
   const bgWidth = Math.max(SCREEN_HEIGHT * aspect, SCREEN_WIDTH * 1.2);
 
+  const maxTranslate = Math.max(0, bgWidth - SCREEN_WIDTH);
+
   const bgTranslateX = useDerivedValue(() => {
+    // Na vitória o fundo rola junto com a passada do pássaro, do início ao fim da imagem.
+    if (gameState === 'victory') {
+      return -Math.min(1, Math.max(0, victoryProgress.value)) * maxTranslate;
+    }
+
     let phaseStartScore = 0;
     let phaseTargetScore = 16;
     if (scoreSV.value >= 31) {
@@ -108,11 +116,6 @@ export function GameScreenInner() {
     const phaseProgress = (pointsEarned + obstacleProgress) / totalPointsInPhase;
     const safeProgress = Math.min(1, Math.max(0, phaseProgress));
 
-    if (gameState === 'victory') {
-      return 0;
-    }
-
-    const maxTranslate = Math.max(0, bgWidth - SCREEN_WIDTH);
     return -safeProgress * maxTranslate;
   });
 
@@ -128,12 +131,12 @@ export function GameScreenInner() {
         <Animated.Image
           testID="game-background"
           source={getBackgroundImage()}
-          // O estilo animado precisa continuar anexado em victory (bgTranslateX devolve 0 nesse
-          // estado): a Reanimated não reverte o último translateX nativo ao desanexar o estilo,
-          // o que deixava a imagem de vitória deslocada para fora da tela.
+          // O estilo animado precisa continuar anexado em victory: a Reanimated não reverte o
+          // último translateX nativo ao desanexar o estilo, o que deixava a imagem de vitória
+          // deslocada para fora da tela.
           style={[
             styles.background,
-            { width: gameState === 'victory' ? SCREEN_WIDTH : bgWidth, height: SCREEN_HEIGHT },
+            { width: bgWidth, height: SCREEN_HEIGHT },
             bgAnimatedStyle
           ]}
           resizeMode="cover"

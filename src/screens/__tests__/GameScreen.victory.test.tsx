@@ -24,6 +24,9 @@ jest.mock('../../hooks/useBackgroundMusic', () => ({
 const SCREEN_WIDTH = 400;
 const SCREEN_HEIGHT = 800;
 
+// Progresso do voo da vitória (0 a 1) que o mock de useGameLoop devolve; cada teste ajusta o seu.
+let mockVictoryProgress = 0;
+
 // useGameLoop mockado já em 'victory' com o progresso de fundo no máximo (score 50), que é o cenário
 // em que o último translateX da fase 3 vale -(bgWidth - SCREEN_WIDTH).
 jest.mock('../../hooks/useGameLoop', () => ({
@@ -34,6 +37,7 @@ jest.mock('../../hooks/useGameLoop', () => ({
     birdY: { value: 400 },
     birdVelocity: { value: 0 },
     birdX: { value: 50 },
+    victoryProgress: { value: mockVictoryProgress },
     obstacleX: { value: -130 },
     obstacleGapY: { value: 100 },
     scoreSV: { value: 50 },
@@ -60,24 +64,40 @@ const parseAlpha = (color: string) => {
 describe('GameScreenInner - tela de vitória', () => {
   beforeEach(() => {
     mockGoBack.mockClear();
+    mockVictoryProgress = 0;
   });
 
-  test('exibe victory-image.png em tela cheia, sem deslocamento residual de translateX', async () => {
+  // O estilo animado não pode ser removido em victory: a Reanimated não reverte o último
+  // translateX nativo ao desanexar o estilo (empurraria a imagem para fora da tela), então o
+  // deslocamento tem de vir sempre do estilo animado.
+  const renderBackgroundStyle = async () => {
     const { getByTestId } = await render(<GameScreenInner />);
-
     const background = getByTestId('game-background');
-    expect(background.props.source).toEqual(require('../../../assets/images/victory-image.png'));
-
     const style = StyleSheet.flatten(background.props.style);
-    expect(style.left).toBe(0);
-    expect(style.width).toBe(SCREEN_WIDTH);
-    expect(style.height).toBe(SCREEN_HEIGHT);
+    const translateX: number = style.transform?.find((t: object) => 'translateX' in t)?.translateX;
+    return { background, style, translateX };
+  };
 
-    // O estilo animado não pode ser removido em victory: a Reanimated não reverte o último
-    // translateX nativo ao desanexar o estilo (empurraria a imagem para fora da tela), então o
-    // reset tem de ser explícito.
-    const translateX = style.transform?.find((t: object) => 'translateX' in t)?.translateX;
-    expect(translateX).toBe(0);
+  test('usa victory-image.png como panorama mais largo que a tela, para poder rolar atrás do pássaro', async () => {
+    const { background, style } = await renderBackgroundStyle();
+
+    expect(background.props.source).toEqual(require('../../../assets/images/victory-image.png'));
+    expect(style.left).toBe(0);
+    expect(style.height).toBe(SCREEN_HEIGHT);
+    expect(style.width).toBeGreaterThan(SCREEN_WIDTH);
+  });
+
+  test.each([
+    ['no início do voo, mostra a borda esquerda da imagem', 0],
+    ['no fim do voo, mostra a borda direita da imagem', 1],
+    ['no meio do voo, o fundo já rolou metade do caminho', 0.5],
+  ])('%s', async (_descricao, progress) => {
+    mockVictoryProgress = progress;
+    const { style, translateX } = await renderBackgroundStyle();
+
+    const scrollableWidth = (style.width as number) - SCREEN_WIDTH;
+    expect(scrollableWidth).toBeGreaterThan(0);
+    expect(translateX).toBeCloseTo(-progress * scrollableWidth, 5);
   });
 
   test('o overlay de vitória é um scrim leve que não oculta a imagem', async () => {

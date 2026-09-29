@@ -15,8 +15,9 @@ const OBSTACLE_WIDTH = 120;
 const VICTORY_FLOAT_AMPLITUDE = 20;
 const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
-// Velocidade horizontal do pássaro na vitória, em px por frame de referência (60 fps).
-const VICTORY_BIRD_SPEED = 3;
+// Duração da passada única do pássaro (e do fundo que rola atrás dele) na tela de vitória. Em ms,
+// e não em px/frame, para que o voo dure o mesmo em qualquer largura de tela e taxa de quadros.
+const VICTORY_FLIGHT_DURATION_MS = 10000;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -42,6 +43,8 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const birdVelocity = useSharedValue(0);
   // Só se move na vitória (voo da esquerda para a direita); no jogo a colisão usa BIRD_X fixo.
   const birdX = useSharedValue(BIRD_X);
+  // Progresso (0 a 1) da passada da vitória: comanda o X do pássaro e o quanto o fundo já rolou.
+  const victoryProgress = useSharedValue(0);
 
   const obstacleX = useSharedValue(SCREEN_WIDTH);
   const currentGapSize = useSharedValue(gaps.phase1);
@@ -127,9 +130,11 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       victoryBaseline.value = birdY.value;
       victoryEntryVelocity.value = birdVelocity.value;
       victoryFrame.value = 0;
-      birdX.value = BIRD_X;
+      // A passada começa com o pássaro entrando pela esquerda, fora da tela.
+      victoryProgress.value = 0;
+      birdX.value = -BIRD_SIZE;
     }
-  }, [gameState, birdY, birdVelocity, birdX, victoryBaseline, victoryEntryVelocity, victoryFrame]);
+  }, [gameState, birdY, birdVelocity, birdX, victoryProgress, victoryBaseline, victoryEntryVelocity, victoryFrame]);
 
   useFrameCallback((frameInfo) => {
     if (gameState === 'victory') {
@@ -145,14 +150,11 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       const ease = Math.min(victoryFrame.value / VICTORY_VELOCITY_EASE_FRAMES, 1);
       birdVelocity.value = victoryEntryVelocity.value + (floatVelocity - victoryEntryVelocity.value) * ease;
 
-      // Voo horizontal em loop: ao passar da borda direita o pássaro reaparece à esquerda, com
-      // o corpo inteiro ainda fora da tela (-BIRD_SIZE), sem salto visível.
-      if (birdX.value > SCREEN_WIDTH) {
-        birdX.value = -BIRD_SIZE;
-      } else {
-        const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
-        birdX.value += VICTORY_BIRD_SPEED * (deltaMs / REFERENCE_FRAME_MS);
-      }
+      // Passada única: o pássaro vai da borda esquerda (todo fora da tela) até sair pela direita e
+      // para aí, com o progresso travado em 1.
+      const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
+      victoryProgress.value = Math.min(1, victoryProgress.value + deltaMs / VICTORY_FLIGHT_DURATION_MS);
+      birdX.value = -BIRD_SIZE + victoryProgress.value * (SCREEN_WIDTH + BIRD_SIZE);
       return;
     }
 
@@ -232,6 +234,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     birdY,
     birdVelocity,
     birdX,
+    victoryProgress,
     obstacleX,
     obstacleGapY,
     scoreSV,
