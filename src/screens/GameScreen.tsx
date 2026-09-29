@@ -22,12 +22,12 @@ export function GameScreenInner() {
     countdownValue,
     birdY,
     birdVelocity,
+    birdX,
     obstacleX,
     obstacleGapY,
     scoreSV,
     jump,
     BIRD_SIZE,
-    BIRD_X,
     OBSTACLE_WIDTH,
     currentGapSize,
     SCREEN_WIDTH,
@@ -126,11 +126,15 @@ export function GameScreenInner() {
     <TouchableWithoutFeedback onPress={handlePress}>
       <View style={styles.container}>
         <Animated.Image
+          testID="game-background"
           source={getBackgroundImage()}
+          // O estilo animado precisa continuar anexado em victory (bgTranslateX devolve 0 nesse
+          // estado): a Reanimated não reverte o último translateX nativo ao desanexar o estilo,
+          // o que deixava a imagem de vitória deslocada para fora da tela.
           style={[
-            styles.background, 
+            styles.background,
             { width: gameState === 'victory' ? SCREEN_WIDTH : bgWidth, height: SCREEN_HEIGHT },
-            gameState === 'victory' ? {} : bgAnimatedStyle
+            bgAnimatedStyle
           ]}
           resizeMode="cover"
         />
@@ -191,7 +195,7 @@ export function GameScreenInner() {
           )}
 
           {gameState === 'victory' && (
-            <View style={styles.victoryOverlay}>
+            <View testID="victory-overlay" style={styles.victoryOverlay}>
               <Text style={styles.victoryText}>Lenda Carioca!</Text>
               <Text style={styles.victorySubText}>Você dominou a Lapa!</Text>
               {canExitVictory && (
@@ -204,7 +208,7 @@ export function GameScreenInner() {
 
           {/* Renderizado por último para ficar acima do victoryOverlay (que não define zIndex),
               já que idle/countdown/gameOver usam styles.overlay com zIndex:200 e continuam por cima. */}
-          <Bird x={BIRD_X} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
+          <Bird x={birdX} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
         </View>
       </View>
     </TouchableWithoutFeedback>
@@ -306,7 +310,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 77, 40, 0.75)',
+    // Scrim leve: só dá contraste aos textos, sem esconder a victory-image.
+    backgroundColor: 'rgba(0, 77, 40, 0.3)',
   },
   victoryText: {
     fontFamily: FONTS.main,

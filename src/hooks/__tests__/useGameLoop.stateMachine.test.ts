@@ -126,3 +126,107 @@ describe('useGameLoop - máquina de estados', () => {
     }
   });
 });
+
+describe('useGameLoop - voo do pássaro na vitória', () => {
+  type HookResult = { current: ReturnType<typeof useGameLoop> };
+
+  // Leva o hook até 'victory' passando obstáculo por obstáculo (com fake timers ativos,
+  // para atravessar os countdowns dos scores 16 e 31).
+  const enterVictory = async (result: HookResult) => {
+    await act(async () => {
+      result.current.jump();
+    });
+
+    for (let target = 1; target <= VICTORY_SCORE_THRESHOLD; target++) {
+      await act(async () => {
+        result.current.birdY.value = SCREEN_HEIGHT / 2;
+        result.current.birdVelocity.value = 0;
+        result.current.obstacleX.value = -(result.current.OBSTACLE_WIDTH + 10);
+        capturedFrameCallback!({ timeSincePreviousFrame: REFERENCE_FRAME_MS });
+      });
+
+      if (target === PHASE_2_SCORE_THRESHOLD || target === PHASE_3_SCORE_THRESHOLD) {
+        await act(async () => {
+          jest.advanceTimersByTime(3000);
+        });
+      }
+    }
+  };
+
+  const advanceFrame = async (deltaMs: number) => {
+    await act(async () => {
+      capturedFrameCallback!({ timeSincePreviousFrame: deltaMs });
+    });
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockUseWindowDimensions.mockReturnValue({ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, scale: 1, fontScale: 1 });
+    capturedFrameCallback = null;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('em victory, o X do pássaro avança, cruza a largura da tela e reinicia à esquerda em loop, mantendo a flutuação em Y', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal'));
+    await enterVictory(result);
+    expect(result.current.gameState).toBe('victory');
+
+    const { birdX, birdY, BIRD_X, BIRD_SIZE } = result.current;
+    expect(birdX.value).toBe(BIRD_X);
+
+    const xs: number[] = [birdX.value];
+    const ys: number[] = [birdY.value];
+    for (let frame = 0; frame < 300; frame++) {
+      await advanceFrame(REFERENCE_FRAME_MS);
+      xs.push(birdX.value);
+      ys.push(birdY.value);
+    }
+
+    // O X sobe frame a frame até o pássaro passar da borda direita...
+    const wrapIndex = xs.findIndex((x, i) => i > 0 && x < xs[i - 1]);
+    expect(wrapIndex).toBeGreaterThan(1);
+    for (let i = 1; i < wrapIndex; i++) {
+      expect(xs[i]).toBeGreaterThan(xs[i - 1]);
+    }
+    expect(xs[wrapIndex - 1]).toBeGreaterThan(SCREEN_WIDTH);
+
+    // ...reaparece imediatamente à esquerda (todo o pássaro fora da tela) e volta a avançar.
+    expect(xs[wrapIndex]).toBe(-BIRD_SIZE);
+    expect(xs[wrapIndex + 1]).toBeGreaterThan(xs[wrapIndex]);
+
+    // A flutuação senoidal em Y continua ativa durante o voo.
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(1);
+  });
+
+  test('em victory, o deslocamento horizontal é proporcional ao tempo do frame (independe da taxa de quadros)', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal'));
+    await enterVictory(result);
+    expect(result.current.gameState).toBe('victory');
+
+    const { birdX } = result.current;
+    const startX = birdX.value;
+    await advanceFrame(REFERENCE_FRAME_MS);
+    const singleFrameStep = birdX.value - startX;
+
+    const beforeDoubleFrame = birdX.value;
+    await advanceFrame(REFERENCE_FRAME_MS * 2);
+
+    expect(singleFrameStep).toBeGreaterThan(0);
+    expect(birdX.value - beforeDoubleFrame).toBeCloseTo(singleFrameStep * 2, 5);
+  });
+
+  test('fora de victory o X do pássaro permanece em BIRD_X', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal'));
+
+    await act(async () => {
+      result.current.jump();
+    });
+    await advanceFrame(REFERENCE_FRAME_MS);
+
+    expect(result.current.gameState).toBe('playing');
+    expect(result.current.birdX.value).toBe(result.current.BIRD_X);
+  });
+});

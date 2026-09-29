@@ -15,6 +15,8 @@ const OBSTACLE_WIDTH = 120;
 const VICTORY_FLOAT_AMPLITUDE = 20;
 const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
+// Velocidade horizontal do pássaro na vitória, em px por frame de referência (60 fps).
+const VICTORY_BIRD_SPEED = 3;
 
 export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -38,6 +40,8 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
 
   const birdY = useSharedValue(SCREEN_HEIGHT / 2);
   const birdVelocity = useSharedValue(0);
+  // Só se move na vitória (voo da esquerda para a direita); no jogo a colisão usa BIRD_X fixo.
+  const birdX = useSharedValue(BIRD_X);
 
   const obstacleX = useSharedValue(SCREEN_WIDTH);
   const currentGapSize = useSharedValue(gaps.phase1);
@@ -123,8 +127,9 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       victoryBaseline.value = birdY.value;
       victoryEntryVelocity.value = birdVelocity.value;
       victoryFrame.value = 0;
+      birdX.value = BIRD_X;
     }
-  }, [gameState, birdY, birdVelocity, victoryBaseline, victoryEntryVelocity, victoryFrame]);
+  }, [gameState, birdY, birdVelocity, birdX, victoryBaseline, victoryEntryVelocity, victoryFrame]);
 
   useFrameCallback((frameInfo) => {
     if (gameState === 'victory') {
@@ -139,6 +144,15 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       const floatVelocity = Math.cos(angle) * VICTORY_FLOAT_AMPLITUDE * VICTORY_FLOAT_SPEED;
       const ease = Math.min(victoryFrame.value / VICTORY_VELOCITY_EASE_FRAMES, 1);
       birdVelocity.value = victoryEntryVelocity.value + (floatVelocity - victoryEntryVelocity.value) * ease;
+
+      // Voo horizontal em loop: ao passar da borda direita o pássaro reaparece à esquerda, com
+      // o corpo inteiro ainda fora da tela (-BIRD_SIZE), sem salto visível.
+      if (birdX.value > SCREEN_WIDTH) {
+        birdX.value = -BIRD_SIZE;
+      } else {
+        const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
+        birdX.value += VICTORY_BIRD_SPEED * (deltaMs / REFERENCE_FRAME_MS);
+      }
       return;
     }
 
@@ -217,6 +231,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     countdownValue,
     birdY,
     birdVelocity,
+    birdX,
     obstacleX,
     obstacleGapY,
     scoreSV,

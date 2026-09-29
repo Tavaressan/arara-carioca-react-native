@@ -26,6 +26,23 @@ export function createReanimatedMock(captureFrameCallback?: (cb: FrameCallback) 
   };
 }
 
+/**
+ * Mock de react-native-reanimated para testes de componentes/telas que renderizam
+ * Animated.View / Animated.Image. `useAnimatedStyle` e `useDerivedValue` executam o worklet uma
+ * vez, de forma síncrona, para que o estilo resultante apareça na árvore renderizada.
+ */
+export function createReanimatedViewMock() {
+  const { Image, View } = require('react-native');
+  return {
+    __esModule: true,
+    default: { Image, View },
+    useAnimatedStyle: (updater: () => unknown) => updater(),
+    useDerivedValue: (updater: () => unknown) => ({ value: updater() }),
+    interpolate: () => 0,
+    Extrapolate: { CLAMP: 'clamp' },
+  };
+}
+
 /** Mock mínimo e compartilhado de expo-audio, usado pelos testes de useGameLoop. */
 export function createExpoAudioMock() {
   return {
