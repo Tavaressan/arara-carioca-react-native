@@ -21,13 +21,20 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.tavaressan.araracarioca"
     },
     "web": {
-      "favicon": "./assets/images/main_character/tico-azul-icon.png"
+      "favicon": "./assets/images/main_character/tico-azul-icon.png",
+      "output": "static"
     },
     "plugins": [
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
   }
 }
