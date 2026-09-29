@@ -86,11 +86,7 @@ export function GameScreenInner() {
   };
 
   const aspect = 1672 / 941;
-  let bgWidth = SCREEN_HEIGHT * aspect;
-
-  if (bgWidth < SCREEN_WIDTH) {
-    bgWidth = SCREEN_WIDTH;
-  }
+  const bgWidth = Math.max(SCREEN_HEIGHT * aspect, SCREEN_WIDTH * 1.2);
 
   const bgTranslateX = useDerivedValue(() => {
     let phaseStartScore = 0;
@@ -263,6 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     width: '80%',
+    maxWidth: 420,
     elevation: 10,
     borderWidth: 4,
     borderColor: '#d4af37',

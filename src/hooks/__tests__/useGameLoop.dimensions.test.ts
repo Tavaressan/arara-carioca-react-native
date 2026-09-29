@@ -27,8 +27,24 @@ describe('useGameLoop - dimensões reativas', () => {
     mockUseWindowDimensions.mockReturnValue({ width: 1024, height: 768, scale: 1, fontScale: 1 });
     await rerender(undefined);
 
-    // Fora da plataforma web não há clamp: SCREEN_WIDTH acompanha diretamente a largura da janela.
+    // SCREEN_WIDTH acompanha diretamente a largura da janela de forma responsiva sem clamp fixo de 800px
     expect(result.current.SCREEN_WIDTH).toBe(1024);
     expect(result.current.SCREEN_HEIGHT).toBe(768);
+  });
+
+  test('adapta dinamicamente em resoluções widescreen (ex: 1920x1080) sem restrição fixa de 800px', async () => {
+    mockUseWindowDimensions.mockReturnValue({ width: 1920, height: 1080, scale: 1, fontScale: 1 });
+    const { result } = await renderHook(() => useGameLoop());
+
+    expect(result.current.SCREEN_WIDTH).toBe(1920);
+    expect(result.current.SCREEN_HEIGHT).toBe(1080);
+  });
+
+  test('suporta orientação landscape mobile (ex: 844x390)', async () => {
+    mockUseWindowDimensions.mockReturnValue({ width: 844, height: 390, scale: 1, fontScale: 1 });
+    const { result } = await renderHook(() => useGameLoop());
+
+    expect(result.current.SCREEN_WIDTH).toBe(844);
+    expect(result.current.SCREEN_HEIGHT).toBe(390);
   });
 });

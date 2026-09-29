@@ -26,7 +26,7 @@
     },
     "web": {
       "favicon": "./assets/images/main_character/tico-azul-icon.png",
-      "output": "static"
+      "output": "single"
     },
     "plugins": [
       "expo-asset"

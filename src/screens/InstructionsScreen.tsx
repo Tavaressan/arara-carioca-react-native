@@ -50,6 +50,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
     width: '90%',
+    maxWidth: 500,
     elevation: 10,
     borderWidth: 4,
     borderColor: '#d4af37',
