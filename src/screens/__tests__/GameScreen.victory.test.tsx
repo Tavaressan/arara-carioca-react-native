@@ -24,8 +24,10 @@ jest.mock('../../hooks/useBackgroundMusic', () => ({
 const SCREEN_WIDTH = 400;
 const SCREEN_HEIGHT = 800;
 
-// Progresso do voo da vitória (0 a 1) que o mock de useGameLoop devolve; cada teste ajusta o seu.
-let mockVictoryProgress = 0;
+// Posição do fundo (0 = borda esquerda da imagem, 1 = borda direita) e opacidade da máscara com o
+// título que o mock de useGameLoop devolve; cada teste ajusta a sua.
+let mockVictoryScroll = 0;
+let mockVictoryOverlayOpacity = 1;
 
 // useGameLoop mockado já em 'victory' com o progresso de fundo no máximo (score 50), que é o cenário
 // em que o último translateX da fase 3 vale -(bgWidth - SCREEN_WIDTH).
@@ -37,7 +39,8 @@ jest.mock('../../hooks/useGameLoop', () => ({
     birdY: { value: 400 },
     birdVelocity: { value: 0 },
     birdX: { value: 50 },
-    victoryProgress: { value: mockVictoryProgress },
+    victoryScroll: { value: mockVictoryScroll },
+    victoryOverlayOpacity: { value: mockVictoryOverlayOpacity },
     obstacleX: { value: -130 },
     obstacleGapY: { value: 100 },
     scoreSV: { value: 50 },
@@ -52,6 +55,7 @@ jest.mock('../../hooks/useGameLoop', () => ({
 }));
 
 import { GameScreenInner } from '../GameScreen';
+import { VICTORY_EXIT_ENABLED_MS } from '../../hooks/victoryTimeline';
 
 // Limite de opacidade do scrim da vitória: acima disso a imagem deixa de ser a protagonista.
 const MAX_VICTORY_SCRIM_ALPHA = 0.35;
@@ -64,7 +68,8 @@ const parseAlpha = (color: string) => {
 describe('GameScreenInner - tela de vitória', () => {
   beforeEach(() => {
     mockGoBack.mockClear();
-    mockVictoryProgress = 0;
+    mockVictoryScroll = 0;
+    mockVictoryOverlayOpacity = 1;
   });
 
   // O estilo animado não pode ser removido em victory: a Reanimated não reverte o último
@@ -92,7 +97,7 @@ describe('GameScreenInner - tela de vitória', () => {
     ['no fim do voo, mostra a borda direita da imagem', 1],
     ['no meio do voo, o fundo já rolou metade do caminho', 0.5],
   ])('%s', async (_descricao, progress) => {
-    mockVictoryProgress = progress;
+    mockVictoryScroll = progress;
     const { style, translateX } = await renderBackgroundStyle();
 
     const scrollableWidth = (style.width as number) - SCREEN_WIDTH;
@@ -108,7 +113,19 @@ describe('GameScreenInner - tela de vitória', () => {
     expect(parseAlpha(overlayStyle.backgroundColor as string)).toBeLessThanOrEqual(MAX_VICTORY_SCRIM_ALPHA);
   });
 
-  test('mantém os textos da vitória e libera o toque para sair somente após 5 segundos', async () => {
+  test.each([
+    ['durante o voo, a máscara e o título ficam invisíveis', 0],
+    ['depois que o pássaro saiu, a máscara e o título ficam visíveis', 1],
+  ])('%s', async (_descricao, opacity) => {
+    mockVictoryOverlayOpacity = opacity;
+    const { getByTestId } = await render(<GameScreenInner />);
+
+    const overlayStyle = StyleSheet.flatten(getByTestId('victory-overlay').props.style);
+
+    expect(overlayStyle.opacity).toBe(opacity);
+  });
+
+  test('mantém os textos da vitória e só libera o toque para sair quando a máscara aparece', async () => {
     jest.useFakeTimers();
     try {
       const { getByText, queryByText, getByTestId } = await render(<GameScreenInner />);
@@ -120,8 +137,16 @@ describe('GameScreenInner - tela de vitória', () => {
       await fireEvent.press(getByTestId('game-background'));
       expect(mockGoBack).not.toHaveBeenCalled();
 
+      // Um pouco antes de a máscara aparecer, ainda não dá para sair (nem há o aviso na tela).
       await act(async () => {
-        jest.advanceTimersByTime(5000);
+        jest.advanceTimersByTime(VICTORY_EXIT_ENABLED_MS - 1);
+      });
+      expect(queryByText('Toque na tela para sair')).toBeNull();
+      await fireEvent.press(getByTestId('game-background'));
+      expect(mockGoBack).not.toHaveBeenCalled();
+
+      await act(async () => {
+        jest.advanceTimersByTime(1);
       });
       getByText('Toque na tela para sair');
 

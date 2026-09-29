@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { REFERENCE_FRAME_MS } from '../physics';
 import { PHASE_2_SCORE_THRESHOLD, PHASE_3_SCORE_THRESHOLD, VICTORY_SCORE_THRESHOLD } from '../../constants/gamePhases';
 import type { FrameCallback } from '../testUtils/reanimatedMock';
+import { getVictoryFrame, VICTORY_TOTAL_MS } from '../victoryTimeline';
 
 // Diferente do mock de useGameLoop.dimensions.test.ts (que descarta o callback de frame, pois só
 // cobre estados fora de 'playing'), aqui capturamos o callback passado a useFrameCallback numa
@@ -169,68 +170,59 @@ describe('useGameLoop - voo do pássaro na vitória', () => {
     jest.useRealTimers();
   });
 
-  test('ao entrar em victory o voo recomeça: progresso zerado e pássaro fora da tela, à esquerda', async () => {
+  test('ao entrar em victory a linha do tempo recomeça: pássaro fora da tela à esquerda, fundo na borda esquerda e sem máscara', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
     await enterVictory(result);
     expect(result.current.gameState).toBe('victory');
 
-    expect(result.current.victoryProgress.value).toBe(0);
-    expect(result.current.birdX.value).toBe(-result.current.BIRD_SIZE);
+    const { birdX, victoryScroll, victoryOverlayOpacity, BIRD_SIZE } = result.current;
+    const start = getVictoryFrame(0, SCREEN_WIDTH, BIRD_SIZE);
+    expect(birdX.value).toBe(start.birdX);
+    expect(victoryScroll.value).toBe(0);
+    expect(victoryOverlayOpacity.value).toBe(0);
   });
 
-  test('em victory, o pássaro cruza a tela da esquerda para a direita uma única vez, acompanhando o progresso do fundo, e para fora da tela', async () => {
+  test('em victory, cada frame avança a linha do tempo pelo deltaMs e posiciona pássaro, fundo e máscara, até parar no fim', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
     await enterVictory(result);
     expect(result.current.gameState).toBe('victory');
 
-    const { birdX, birdY, victoryProgress, BIRD_SIZE } = result.current;
+    const { birdX, birdY, victoryScroll, victoryOverlayOpacity, BIRD_SIZE } = result.current;
 
-    const progresses: number[] = [];
-    const xs: number[] = [];
     const ys: number[] = [];
-    // Frames de 100 ms: bem mais que 60 fps, para percorrer o voo inteiro em poucas iterações.
-    for (let frame = 0; frame < 300; frame++) {
-      await advanceFrame(100);
-      progresses.push(victoryProgress.value);
-      xs.push(birdX.value);
+    let elapsed = 0;
+    // Frames de 1 s: bem mais que 60 fps, para percorrer a linha do tempo inteira em poucas iterações.
+    while (elapsed < VICTORY_TOTAL_MS + 2000) {
+      await advanceFrame(1000);
+      elapsed += 1000;
+      const expected = getVictoryFrame(elapsed, SCREEN_WIDTH, BIRD_SIZE);
+      expect(birdX.value).toBeCloseTo(expected.birdX, 9);
+      expect(victoryScroll.value).toBeCloseTo(expected.scroll, 9);
+      expect(victoryOverlayOpacity.value).toBeCloseTo(expected.overlayOpacity, 9);
       ys.push(birdY.value);
     }
-
-    // O progresso só cresce e trava em 1 (sem reiniciar: é uma passada única)...
-    for (let i = 1; i < progresses.length; i++) {
-      expect(progresses[i]).toBeGreaterThanOrEqual(progresses[i - 1]);
-    }
-    expect(progresses[progresses.length - 1]).toBe(1);
-
-    // ...e o X do pássaro acompanha o progresso: do lado esquerdo (fora da tela) ao direito.
-    xs.forEach((x, i) => {
-      expect(x).toBeCloseTo(-BIRD_SIZE + progresses[i] * (SCREEN_WIDTH + BIRD_SIZE), 5);
-    });
-    expect(xs[0]).toBeLessThan(SCREEN_WIDTH / 2);
-    expect(xs[xs.length - 1]).toBe(SCREEN_WIDTH);
 
     // A flutuação senoidal em Y continua ativa durante o voo.
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(1);
   });
 
-  test('em victory, o avanço do voo é proporcional ao tempo do frame (independe da taxa de quadros)', async () => {
+  test('em victory, o avanço é proporcional ao tempo do frame (independe da taxa de quadros)', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
     await enterVictory(result);
     expect(result.current.gameState).toBe('victory');
 
-    const { victoryProgress } = result.current;
-    const startProgress = victoryProgress.value;
+    const { victoryScroll } = result.current;
     await advanceFrame(REFERENCE_FRAME_MS);
-    const singleFrameStep = victoryProgress.value - startProgress;
+    const singleFrameStep = victoryScroll.value;
 
-    const beforeDoubleFrame = victoryProgress.value;
+    const beforeDoubleFrame = victoryScroll.value;
     await advanceFrame(REFERENCE_FRAME_MS * 2);
 
     expect(singleFrameStep).toBeGreaterThan(0);
-    expect(victoryProgress.value - beforeDoubleFrame).toBeCloseTo(singleFrameStep * 2, 8);
+    expect(victoryScroll.value - beforeDoubleFrame).toBeCloseTo(singleFrameStep * 2, 8);
   });
 
-  test('fora de victory o X do pássaro permanece em BIRD_X e o progresso do voo em 0', async () => {
+  test('fora de victory o pássaro permanece em BIRD_X, o fundo em 0 e a máscara em 0', async () => {
     const { result } = await renderHook(() => useGameLoop('normal'));
 
     await act(async () => {
@@ -240,6 +232,7 @@ describe('useGameLoop - voo do pássaro na vitória', () => {
 
     expect(result.current.gameState).toBe('playing');
     expect(result.current.birdX.value).toBe(result.current.BIRD_X);
-    expect(result.current.victoryProgress.value).toBe(0);
+    expect(result.current.victoryScroll.value).toBe(0);
+    expect(result.current.victoryOverlayOpacity.value).toBe(0);
   });
 });
