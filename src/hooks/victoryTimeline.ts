@@ -1,12 +1,14 @@
 // Linha do tempo pura da tela de vitória, independente de plataforma/frame rate (mesmo padrão de
 // physics.ts). Em ordem: o pássaro cruza a tela com o fundo rolando atrás dele; depois que ele saiu
-// por completo, a máscara escura e o título aparecem; então o fundo espera um instante e volta ao
-// centro da imagem (onde fica o palacete da Ilha Fiscal).
+// por completo, a máscara escura e o título aparecem; então o fundo espera um instante e volta à
+// borda esquerda da imagem (onde aparece Dom Pedro II na sacada).
 
 export const VICTORY_FLIGHT_MS = 10000;
 export const VICTORY_REVEAL_MS = 800;
 export const VICTORY_HOLD_MS = 1200;
-export const VICTORY_PAN_BACK_MS = 2000;
+// A volta percorre a largura toda (da borda direita à esquerda); 4 s mantêm a mesma velocidade
+// visual de quando ela ia só até o centro em 2 s.
+export const VICTORY_PAN_BACK_MS = 4000;
 export const VICTORY_TOTAL_MS =
   VICTORY_FLIGHT_MS + VICTORY_REVEAL_MS + VICTORY_HOLD_MS + VICTORY_PAN_BACK_MS;
 
@@ -14,7 +16,7 @@ export const VICTORY_TOTAL_MS =
 export const VICTORY_EXIT_ENABLED_MS = VICTORY_FLIGHT_MS + VICTORY_REVEAL_MS;
 
 // Posição final do fundo: 0 = borda esquerda da imagem, 1 = borda direita, 0.5 = centro.
-export const VICTORY_FINAL_SCROLL = 0.5;
+export const VICTORY_FINAL_SCROLL = 0;
 
 export interface VictoryFrame {
   birdX: number;

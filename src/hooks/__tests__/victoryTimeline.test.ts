@@ -56,7 +56,7 @@ describe('victoryTimeline - linha do tempo da tela de vitória', () => {
     expect(at(VICTORY_TOTAL_MS).birdX).toBe(exitedX);
   });
 
-  test('com a máscara visível o fundo espera na borda direita e depois volta ao centro da imagem', () => {
+  test('com a máscara visível o fundo espera na borda direita e depois volta à borda esquerda da imagem (Dom Pedro II)', () => {
     const panBackStart = VICTORY_FLIGHT_MS + VICTORY_REVEAL_MS + VICTORY_HOLD_MS;
 
     expect(at(panBackStart).scroll).toBe(1);
@@ -70,7 +70,7 @@ describe('victoryTimeline - linha do tempo da tela de vitória', () => {
       previous = scroll;
     }
 
-    expect(at(VICTORY_TOTAL_MS).scroll).toBeCloseTo(0.5, 9);
+    expect(at(VICTORY_TOTAL_MS).scroll).toBeCloseTo(0, 9);
     expect(at(VICTORY_TOTAL_MS).overlayOpacity).toBe(1);
   });
 

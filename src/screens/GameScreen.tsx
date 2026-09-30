@@ -99,7 +99,7 @@ export function GameScreenInner() {
   const maxTranslate = Math.max(0, bgWidth - SCREEN_WIDTH);
 
   const bgTranslateX = useDerivedValue(() => {
-    // Na vitória a posição do fundo vem da linha do tempo: rola com o pássaro e depois volta ao centro.
+    // Na vitória a posição do fundo vem da linha do tempo: rola com o pássaro e depois volta à borda esquerda.
     if (gameState === 'victory') {
       return -Math.min(1, Math.max(0, victoryScroll.value)) * maxTranslate;
     }
