@@ -10,38 +10,44 @@ import Score from '../components/Score';
 import { COLORS, FONTS } from '../constants/theme';
 import { useBackgroundMusic } from '../hooks/useBackgroundMusic';
 import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import { VICTORY_EXIT_ENABLED_MS } from '../hooks/victoryTimeline';
 
 export function GameScreenInner() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const difficulty = route.params?.difficulty || 'normal';
-  
+  // Atalho de desenvolvimento: só vale em builds de desenvolvimento, nunca em produção.
+  const startInVictory = __DEV__ && route.params?.startInVictory === true;
+
   const {
     gameState,
     score,
     countdownValue,
     birdY,
     birdVelocity,
+    birdX,
+    victoryScroll,
+    victoryOverlayOpacity,
     obstacleX,
     obstacleGapY,
     scoreSV,
     jump,
     BIRD_SIZE,
-    BIRD_X,
     OBSTACLE_WIDTH,
     currentGapSize,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-  } = useGameLoop(difficulty);
+  } = useGameLoop(difficulty, { startInVictory });
 
   const [canExitVictory, setCanExitVictory] = useState(false);
   const { setScore: setHighScore } = useHighScore();
 
   useEffect(() => {
-    if (gameState === 'gameOver' || gameState === 'victory') {
+    // No atalho de desenvolvimento o score de vitória é fictício e não pode virar recorde.
+    if (!startInVictory && (gameState === 'gameOver' || gameState === 'victory')) {
       setHighScore(score);
     }
-  }, [gameState, score, setHighScore]);
+  }, [gameState, score, setHighScore, startInVictory]);
 
   const getCurrentTrack = () => {
     if (gameState === 'victory') return require('../../assets/sounds/music/last-party-music.mp3');
@@ -59,9 +65,11 @@ export function GameScreenInner() {
 
   useEffect(() => {
     if (gameState === 'victory') {
+      // Só libera a saída (e o aviso na tela) quando o título já apareceu, no fim da linha do tempo
+      // de vitória em que o pássaro cruza a tela; antes disso um toque cortaria a cena.
       const timer = setTimeout(() => {
         setCanExitVictory(true);
-      }, 5000);
+      }, VICTORY_EXIT_ENABLED_MS);
       return () => clearTimeout(timer);
     } else {
       setCanExitVictory(false);
@@ -88,7 +96,14 @@ export function GameScreenInner() {
   const aspect = 1672 / 941;
   const bgWidth = Math.max(SCREEN_HEIGHT * aspect, SCREEN_WIDTH * 1.2);
 
+  const maxTranslate = Math.max(0, bgWidth - SCREEN_WIDTH);
+
   const bgTranslateX = useDerivedValue(() => {
+    // Na vitória a posição do fundo vem da linha do tempo: rola com o pássaro e depois volta à borda esquerda.
+    if (gameState === 'victory') {
+      return -Math.min(1, Math.max(0, victoryScroll.value)) * maxTranslate;
+    }
+
     let phaseStartScore = 0;
     let phaseTargetScore = 16;
     if (scoreSV.value >= 31) {
@@ -108,11 +123,6 @@ export function GameScreenInner() {
     const phaseProgress = (pointsEarned + obstacleProgress) / totalPointsInPhase;
     const safeProgress = Math.min(1, Math.max(0, phaseProgress));
 
-    if (gameState === 'victory') {
-      return 0;
-    }
-
-    const maxTranslate = Math.max(0, bgWidth - SCREEN_WIDTH);
     return -safeProgress * maxTranslate;
   });
 
@@ -122,15 +132,24 @@ export function GameScreenInner() {
     };
   });
 
+  // A máscara e o título só aparecem depois que o pássaro saiu da tela.
+  const victoryOverlayStyle = useAnimatedStyle(() => {
+    return { opacity: victoryOverlayOpacity.value };
+  });
+
   return (
     <TouchableWithoutFeedback onPress={handlePress}>
       <View style={styles.container}>
         <Animated.Image
+          testID="game-background"
           source={getBackgroundImage()}
+          // O estilo animado precisa continuar anexado em victory: a Reanimated não reverte o
+          // último translateX nativo ao desanexar o estilo, o que deixava a imagem de vitória
+          // deslocada para fora da tela.
           style={[
-            styles.background, 
-            { width: gameState === 'victory' ? SCREEN_WIDTH : bgWidth, height: SCREEN_HEIGHT },
-            gameState === 'victory' ? {} : bgAnimatedStyle
+            styles.background,
+            { width: bgWidth, height: SCREEN_HEIGHT },
+            bgAnimatedStyle
           ]}
           resizeMode="cover"
         />
@@ -191,7 +210,7 @@ export function GameScreenInner() {
           )}
 
           {gameState === 'victory' && (
-            <View style={styles.victoryOverlay}>
+            <Animated.View testID="victory-overlay" style={[styles.victoryOverlay, victoryOverlayStyle]}>
               <Text style={styles.victoryText}>Lenda Carioca!</Text>
               <Text style={styles.victorySubText}>Você dominou a Lapa!</Text>
               {canExitVictory && (
@@ -199,12 +218,12 @@ export function GameScreenInner() {
                   Toque na tela para sair
                 </Text>
               )}
-            </View>
+            </Animated.View>
           )}
 
           {/* Renderizado por último para ficar acima do victoryOverlay (que não define zIndex),
               já que idle/countdown/gameOver usam styles.overlay com zIndex:200 e continuam por cima. */}
-          <Bird x={BIRD_X} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
+          <Bird x={birdX} y={birdY} velocity={birdVelocity} size={BIRD_SIZE} />
         </View>
       </View>
     </TouchableWithoutFeedback>
@@ -306,7 +325,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 77, 40, 0.75)',
+    // Scrim leve: só dá contraste aos textos, sem esconder a victory-image.
+    backgroundColor: 'rgba(0, 77, 40, 0.3)',
   },
   victoryText: {
     fontFamily: FONTS.main,

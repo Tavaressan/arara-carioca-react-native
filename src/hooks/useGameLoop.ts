@@ -3,6 +3,7 @@ import { useSharedValue, useFrameCallback, runOnJS } from 'react-native-reanimat
 import { useWindowDimensions } from 'react-native';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { applyPhysicsStep, REFERENCE_FRAME_MS, JUMP_FORCE } from './physics';
+import { getVictoryFrame, VICTORY_TOTAL_MS } from './victoryTimeline';
 import {
   PHASE_2_SCORE_THRESHOLD,
   PHASE_3_SCORE_THRESHOLD,
@@ -16,7 +17,16 @@ const VICTORY_FLOAT_AMPLITUDE = 20;
 const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
 
-export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+interface GameLoopOptions {
+  // Atalho de desenvolvimento: nasce direto em 'victory', já com o score de vitória.
+  startInVictory?: boolean;
+}
+
+export function useGameLoop(
+  difficulty: 'easy' | 'normal' | 'hard' = 'normal',
+  { startInVictory = false }: GameLoopOptions = {}
+) {
+  const initialScore = startInVictory ? VICTORY_SCORE_THRESHOLD : 0;
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
   const getPhaseGaps = () => {
@@ -29,8 +39,10 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   };
   const gaps = getPhaseGaps();
 
-  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>('idle');
-  const [score, setScore] = useState(0);
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>(
+    startInVictory ? 'victory' : 'idle'
+  );
+  const [score, setScore] = useState(initialScore);
   const [countdownValue, setCountdownValue] = useState(3);
 
 
@@ -38,11 +50,17 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
 
   const birdY = useSharedValue(SCREEN_HEIGHT / 2);
   const birdVelocity = useSharedValue(0);
+  // Só se move na vitória (voo da esquerda para a direita); no jogo a colisão usa BIRD_X fixo.
+  const birdX = useSharedValue(BIRD_X);
+  // Linha do tempo da vitória (ver victoryTimeline.ts): tempo decorrido e o que ele determina.
+  const victoryElapsedMs = useSharedValue(0);
+  const victoryScroll = useSharedValue(0);
+  const victoryOverlayOpacity = useSharedValue(0);
 
   const obstacleX = useSharedValue(SCREEN_WIDTH);
   const currentGapSize = useSharedValue(gaps.phase1);
   const obstacleGapY = useSharedValue(SCREEN_HEIGHT / 2 - gaps.phase1 / 2);
-  const scoreSV = useSharedValue(0);
+  const scoreSV = useSharedValue(initialScore);
 
   const victoryBaseline = useSharedValue(SCREEN_HEIGHT / 2);
   const victoryFrame = useSharedValue(0);
@@ -123,8 +141,19 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       victoryBaseline.value = birdY.value;
       victoryEntryVelocity.value = birdVelocity.value;
       victoryFrame.value = 0;
+      // A linha do tempo recomeça com o pássaro fora da tela, à esquerda, e sem máscara. O início não
+      // depende da largura da tela, por isso ela fica fora das dependências: redimensionar a janela
+      // (web) durante a cena não pode reiniciar a linha do tempo.
+      const start = getVictoryFrame(0, SCREEN_WIDTH, BIRD_SIZE);
+      victoryElapsedMs.value = 0;
+      birdX.value = start.birdX;
+      victoryScroll.value = start.scroll;
+      victoryOverlayOpacity.value = start.overlayOpacity;
     }
-  }, [gameState, birdY, birdVelocity, victoryBaseline, victoryEntryVelocity, victoryFrame]);
+  }, [
+    gameState, birdY, birdVelocity, birdX, victoryBaseline, victoryEntryVelocity,
+    victoryFrame, victoryElapsedMs, victoryScroll, victoryOverlayOpacity,
+  ]);
 
   useFrameCallback((frameInfo) => {
     if (gameState === 'victory') {
@@ -139,6 +168,14 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
       const floatVelocity = Math.cos(angle) * VICTORY_FLOAT_AMPLITUDE * VICTORY_FLOAT_SPEED;
       const ease = Math.min(victoryFrame.value / VICTORY_VELOCITY_EASE_FRAMES, 1);
       birdVelocity.value = victoryEntryVelocity.value + (floatVelocity - victoryEntryVelocity.value) * ease;
+
+      // Avança a linha do tempo (voo, máscara, volta do fundo) pelo tempo real do frame.
+      const deltaMs = frameInfo.timeSincePreviousFrame ?? REFERENCE_FRAME_MS;
+      victoryElapsedMs.value = Math.min(VICTORY_TOTAL_MS, victoryElapsedMs.value + deltaMs);
+      const timeline = getVictoryFrame(victoryElapsedMs.value, SCREEN_WIDTH, BIRD_SIZE);
+      birdX.value = timeline.birdX;
+      victoryScroll.value = timeline.scroll;
+      victoryOverlayOpacity.value = timeline.overlayOpacity;
       return;
     }
 
@@ -217,6 +254,9 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
     countdownValue,
     birdY,
     birdVelocity,
+    birdX,
+    victoryScroll,
+    victoryOverlayOpacity,
     obstacleX,
     obstacleGapY,
     scoreSV,
