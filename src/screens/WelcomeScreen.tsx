@@ -90,6 +90,18 @@ export default function WelcomeScreen() {
               >
                 <Text style={styles.buttonText}>Créditos</Text>
               </TouchableOpacity>
+
+              {__DEV__ && (
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: COLORS.dark }]}
+                  onPress={() => {
+                    musicPlayer.current?.pause();
+                    navigation.navigate('Game', { difficulty, startInVictory: true });
+                  }}
+                >
+                  <Text style={styles.buttonText}>[DEV] Ver tela de vitória</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </ImageBackground>

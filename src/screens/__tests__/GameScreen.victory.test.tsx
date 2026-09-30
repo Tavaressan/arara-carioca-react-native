@@ -8,13 +8,15 @@ jest.mock('react-native-reanimated', () =>
 );
 
 const mockGoBack = jest.fn();
+const mockSetHighScore = jest.fn();
+let mockRouteParams: Record<string, unknown> = { difficulty: 'easy' };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack }),
-  useRoute: () => ({ params: { difficulty: 'easy' } }),
+  useRoute: () => ({ params: mockRouteParams }),
 }));
 
 jest.mock('../../hooks/useHighScore', () => ({
-  useHighScore: () => ({ setScore: jest.fn() }),
+  useHighScore: () => ({ setScore: mockSetHighScore }),
 }));
 
 jest.mock('../../hooks/useBackgroundMusic', () => ({
@@ -32,7 +34,7 @@ let mockVictoryOverlayOpacity = 1;
 // useGameLoop mockado já em 'victory' com o progresso de fundo no máximo (score 50), que é o cenário
 // em que o último translateX da fase 3 vale -(bgWidth - SCREEN_WIDTH).
 jest.mock('../../hooks/useGameLoop', () => ({
-  useGameLoop: () => ({
+  useGameLoop: jest.fn(() => ({
     gameState: 'victory',
     score: 50,
     countdownValue: 3,
@@ -51,10 +53,11 @@ jest.mock('../../hooks/useGameLoop', () => ({
     currentGapSize: { value: 450 },
     SCREEN_WIDTH: 400,
     SCREEN_HEIGHT: 800,
-  }),
+  })),
 }));
 
 import { GameScreenInner } from '../GameScreen';
+import { useGameLoop } from '../../hooks/useGameLoop';
 import { VICTORY_EXIT_ENABLED_MS } from '../../hooks/victoryTimeline';
 
 // Limite de opacidade do scrim da vitória: acima disso a imagem deixa de ser a protagonista.
@@ -68,6 +71,9 @@ const parseAlpha = (color: string) => {
 describe('GameScreenInner - tela de vitória', () => {
   beforeEach(() => {
     mockGoBack.mockClear();
+    mockSetHighScore.mockClear();
+    (useGameLoop as jest.Mock).mockClear();
+    mockRouteParams = { difficulty: 'easy' };
     mockVictoryScroll = 0;
     mockVictoryOverlayOpacity = 1;
   });
@@ -155,5 +161,67 @@ describe('GameScreenInner - tela de vitória', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test('numa vitória de verdade, o score continua virando recorde', async () => {
+    await render(<GameScreenInner />);
+
+    expect(mockSetHighScore).toHaveBeenCalledWith(50);
+  });
+});
+
+describe('GameScreenInner - atalho de desenvolvimento para a vitória', () => {
+  // __DEV__ é uma constante global do React Native; nos testes ela vale true, e aqui a trocamos para
+  // simular um build de produção.
+  const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__;
+  const setDev = (value: boolean) => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = value;
+  };
+
+  beforeEach(() => {
+    mockSetHighScore.mockClear();
+    (useGameLoop as jest.Mock).mockClear();
+    mockRouteParams = { difficulty: 'easy' };
+    mockVictoryScroll = 0;
+    mockVictoryOverlayOpacity = 1;
+  });
+
+  afterEach(() => {
+    setDev(originalDev as boolean);
+  });
+
+  test('em desenvolvimento, o parâmetro startInVictory faz o hook nascer em victory', async () => {
+    setDev(true);
+    mockRouteParams = { difficulty: 'easy', startInVictory: true };
+
+    await render(<GameScreenInner />);
+
+    expect(useGameLoop).toHaveBeenLastCalledWith('easy', { startInVictory: true });
+  });
+
+  test('fora de desenvolvimento (build de produção), o parâmetro é ignorado', async () => {
+    setDev(false);
+    mockRouteParams = { difficulty: 'easy', startInVictory: true };
+
+    await render(<GameScreenInner />);
+
+    expect(useGameLoop).toHaveBeenLastCalledWith('easy', { startInVictory: false });
+  });
+
+  test('sem o parâmetro, o jogo segue o fluxo normal', async () => {
+    setDev(true);
+
+    await render(<GameScreenInner />);
+
+    expect(useGameLoop).toHaveBeenLastCalledWith('easy', { startInVictory: false });
+  });
+
+  test('no atalho, o score de vitória fictício não vira recorde', async () => {
+    setDev(true);
+    mockRouteParams = { difficulty: 'easy', startInVictory: true };
+
+    await render(<GameScreenInner />);
+
+    expect(mockSetHighScore).not.toHaveBeenCalled();
   });
 });

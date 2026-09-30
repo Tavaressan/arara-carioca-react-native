@@ -128,6 +128,43 @@ describe('useGameLoop - máquina de estados', () => {
   });
 });
 
+describe('useGameLoop - atalho de desenvolvimento para a vitória', () => {
+  beforeEach(() => {
+    mockUseWindowDimensions.mockReturnValue({ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, scale: 1, fontScale: 1 });
+    capturedFrameCallback = null;
+  });
+
+  test('com startInVictory o hook já nasce em victory, com score de vitória, pássaro fora da tela à esquerda e sem máscara', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal', { startInVictory: true }));
+
+    const { gameState, score, scoreSV, birdX, victoryScroll, victoryOverlayOpacity, BIRD_SIZE } = result.current;
+    expect(gameState).toBe('victory');
+    expect(score).toBe(VICTORY_SCORE_THRESHOLD);
+    expect(scoreSV.value).toBe(VICTORY_SCORE_THRESHOLD);
+    expect(birdX.value).toBe(getVictoryFrame(0, SCREEN_WIDTH, BIRD_SIZE).birdX);
+    expect(victoryScroll.value).toBe(0);
+    expect(victoryOverlayOpacity.value).toBe(0);
+  });
+
+  test('com startInVictory a linha do tempo da vitória anda a partir do primeiro frame', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal', { startInVictory: true }));
+
+    await act(async () => {
+      capturedFrameCallback!({ timeSincePreviousFrame: 1000 });
+    });
+
+    expect(result.current.victoryScroll.value).toBeGreaterThan(0);
+  });
+
+  test('sem a opção o hook segue nascendo em idle, com score 0', async () => {
+    const { result } = await renderHook(() => useGameLoop('normal'));
+
+    expect(result.current.gameState).toBe('idle');
+    expect(result.current.score).toBe(0);
+    expect(result.current.scoreSV.value).toBe(0);
+  });
+});
+
 describe('useGameLoop - voo do pássaro na vitória', () => {
   type HookResult = { current: ReturnType<typeof useGameLoop> };
 

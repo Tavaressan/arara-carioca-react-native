@@ -16,7 +16,9 @@ export function GameScreenInner() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const difficulty = route.params?.difficulty || 'normal';
-  
+  // Atalho de desenvolvimento: só vale em builds de desenvolvimento, nunca em produção.
+  const startInVictory = __DEV__ && route.params?.startInVictory === true;
+
   const {
     gameState,
     score,
@@ -35,16 +37,17 @@ export function GameScreenInner() {
     currentGapSize,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-  } = useGameLoop(difficulty);
+  } = useGameLoop(difficulty, { startInVictory });
 
   const [canExitVictory, setCanExitVictory] = useState(false);
   const { setScore: setHighScore } = useHighScore();
 
   useEffect(() => {
-    if (gameState === 'gameOver' || gameState === 'victory') {
+    // No atalho de desenvolvimento o score de vitória é fictício e não pode virar recorde.
+    if (!startInVictory && (gameState === 'gameOver' || gameState === 'victory')) {
       setHighScore(score);
     }
-  }, [gameState, score, setHighScore]);
+  }, [gameState, score, setHighScore, startInVictory]);
 
   const getCurrentTrack = () => {
     if (gameState === 'victory') return require('../../assets/sounds/music/last-party-music.mp3');

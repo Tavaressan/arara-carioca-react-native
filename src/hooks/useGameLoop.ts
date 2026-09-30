@@ -17,7 +17,16 @@ const VICTORY_FLOAT_AMPLITUDE = 20;
 const VICTORY_FLOAT_SPEED = 0.04;
 const VICTORY_VELOCITY_EASE_FRAMES = 15;
 
-export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+interface GameLoopOptions {
+  // Atalho de desenvolvimento: nasce direto em 'victory', já com o score de vitória.
+  startInVictory?: boolean;
+}
+
+export function useGameLoop(
+  difficulty: 'easy' | 'normal' | 'hard' = 'normal',
+  { startInVictory = false }: GameLoopOptions = {}
+) {
+  const initialScore = startInVictory ? VICTORY_SCORE_THRESHOLD : 0;
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
   const getPhaseGaps = () => {
@@ -30,8 +39,10 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   };
   const gaps = getPhaseGaps();
 
-  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>('idle');
-  const [score, setScore] = useState(0);
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver' | 'victory' | 'countdown'>(
+    startInVictory ? 'victory' : 'idle'
+  );
+  const [score, setScore] = useState(initialScore);
   const [countdownValue, setCountdownValue] = useState(3);
 
 
@@ -49,7 +60,7 @@ export function useGameLoop(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
   const obstacleX = useSharedValue(SCREEN_WIDTH);
   const currentGapSize = useSharedValue(gaps.phase1);
   const obstacleGapY = useSharedValue(SCREEN_HEIGHT / 2 - gaps.phase1 / 2);
-  const scoreSV = useSharedValue(0);
+  const scoreSV = useSharedValue(initialScore);
 
   const victoryBaseline = useSharedValue(SCREEN_HEIGHT / 2);
   const victoryFrame = useSharedValue(0);
